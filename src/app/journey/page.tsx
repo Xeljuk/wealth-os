@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
 import { Skeleton, useDelayedLoading } from "@/components/ui/Skeleton";
+import { markVisited } from "@/components/copilot/SetupChecklist";
 import {
   formatCurrency,
   formatMonth,
@@ -425,6 +426,10 @@ export default function JourneyPage() {
     useWealth();
   const showSkeleton = useDelayedLoading(isLoading);
   const { balanceSheet: bs, cashFlow: cf } = snapshot;
+
+  useEffect(() => {
+    markVisited("visitedJourney");
+  }, []);
 
   const nodes = useMemo<JourneyNode[]>(() => {
     const monthlyReturn = 0.06 / 12;

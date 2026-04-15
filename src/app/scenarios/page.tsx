@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
 import { useToast } from "@/components/ui/Toast";
 import { Skeleton, useDelayedLoading } from "@/components/ui/Skeleton";
+import { markVisited } from "@/components/copilot/SetupChecklist";
 import { formatCurrency, formatMonth } from "@/lib/format";
 import type { PlanStance, PlanVariant, Scenario } from "@/lib/types";
 import ScenarioFormModal, {
@@ -199,6 +200,10 @@ export default function ScenarioSimulator() {
   } = useWealth();
   const showSkeleton = useDelayedLoading(isLoading);
   const toast = useToast();
+
+  useEffect(() => {
+    markVisited("visitedScenarios");
+  }, []);
   const { plans, scenarios: rawScenarios, cashFlow: cf } = snapshot;
 
   const [modal, setModal] = useState<ScenarioModalState>({ kind: "closed" });

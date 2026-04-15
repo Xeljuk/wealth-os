@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, Fragment } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
 import { Skeleton, useDelayedLoading } from "@/components/ui/Skeleton";
+import SetupChecklist from "@/components/copilot/SetupChecklist";
 import { formatCurrency, formatMonth } from "@/lib/format";
 import type { PlanStance } from "@/lib/types";
 import Link from "next/link";
@@ -355,6 +356,18 @@ export default function CopilotPage() {
       title="Your wealth strategist, on call."
       subtitle={`Synthesises ${profile.name}'s current model — balance sheet, cash flow, goals, scenarios — into plain-language guidance. Ground every answer in your real numbers.`}
     >
+      {/* ── Setup checklist — guided next steps ─────────────────── */}
+      <SetupChecklist
+        signal={{
+          hasIncome: cf.incomes.length > 0,
+          hasExpenses: cf.expenses.length > 0,
+          hasGoals: goals.length > 0,
+          hasAssets: bs.assets.length > 0,
+          hasLiabilities: bs.liabilities.length > 0,
+          hasClosedMonth: history.length > 0,
+        }}
+      />
+
       {/* ── Stat strip — absolute on first look, deltas after ──── */}
       {history.length >= 2 ? (
         (() => {
