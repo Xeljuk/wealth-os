@@ -1,26 +1,164 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ── Ethos Palette: "The Curated Sanctuary" ──────────────── */
+
+  /* Sidebar */
+  --color-sidebar: #f5f4ef;
+  --color-sidebar-text: #78716c;
+  --color-sidebar-active-bg: rgba(231, 229, 224, 0.55);
+
+  /* Surfaces — layered like vellum on stone */
+  --color-page-bg: #faf8f4;          /* vellum — warm off-white page surface */
+  --color-surface: #ffffff;          /* crisp — reserved for floating cards/modals */
+  --color-surface-low: #f2f0e9;      /* sunken tinted panel */
+  --color-vellum-deep: #f3eee4;      /* slightly warmer panel alternative */
+
+  /* Primary — Sage Green */
+  --color-accent: #45645e;
+  --color-accent-light: #d8ebe4;
+  --color-moss: #2f4641;             /* deeper sage for hover/active */
+
+  /* Typography — ink on stone, never pure black */
+  --color-ink: #1f2526;              /* display ink — the deepest tone */
+  --color-text-primary: #2d3435;
+  --color-text-secondary: #5a6061;
+  --color-text-muted: #a3a8a6;
+
+  /* Borders — ghost-level, barely perceptible */
+  --color-border: #d8d9d2;
+  --color-border-light: #e8e7e0;
+
+  /* Status — warmed, earthy */
+  --color-positive: #506a4a;
+  --color-positive-light: #e1f2d8;
+  --color-negative: #a74b42;         /* warmed rust (was #9f403d) */
+  --color-negative-light: #fae1de;
+  --color-warning: #b56a12;
+  --color-warning-light: #fbeed4;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-background: var(--color-page-bg);
+  --color-foreground: var(--color-text-primary);
+  --font-sans: var(--font-manrope);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-page-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Atmospheric scrollbar — barely visible ──────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 10px;
+}
+
+/* ── Surface utilities ────────────────────────────────────────── */
+
+/* Used only for genuinely floating UI: modals, popovers, tactile tiles. */
+.atmospheric-shadow {
+  box-shadow: 0 12px 48px -16px rgba(45, 52, 53, 0.08),
+              0 1px 0 0 rgba(45, 52, 53, 0.025);
+}
+
+/* Signature gradient for primary CTAs */
+.signature-gradient {
+  background: linear-gradient(135deg, #45645e 0%, #2f4641 100%);
+}
+
+/* Thin hairline separators — use instead of boxed cards */
+.hairline-top {
+  border-top: 1px solid var(--color-border-light);
+}
+.hairline-bottom {
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+/* ── Editorial typography scale ──────────────────────────────── */
+
+/* Hero display — the single largest number/word on a page */
+.display-hero {
+  font-size: clamp(3.5rem, 6.5vw, 4.75rem);   /* 56 → 76px */
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Page title — one per page, sits under an eyebrow label */
+.display-page {
+  font-size: clamp(2rem, 3.5vw, 2.5rem);      /* 32 → 40px */
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+
+/* Section headline — group divider, sentence-based */
+.headline-section {
+  font-size: 1.375rem;                        /* 22px */
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  color: var(--color-text-primary);
+}
+
+/* Lead paragraph — subtitle under page title or hero, intro copy */
+.lead-text {
+  font-size: 1.0625rem;                       /* 17px */
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  max-width: 62ch;
+}
+
+/* Body text — long-form readable content */
+.body-editorial {
+  font-size: 0.9375rem;                       /* 15px */
+  font-weight: 400;
+  line-height: 1.75;
+  color: var(--color-text-secondary);
+  max-width: 72ch;
+}
+
+/* Recurring meta label — the eyebrow above page title / above section */
+.label-meta {
+  font-size: 0.6875rem;                       /* 11px */
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-text-muted);
+}
+
+/* Legacy — keep for any untouched pages. Will be phased out. */
+.stat-value {
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+/* ── Vertical rhythm helpers ─────────────────────────────────── */
+
+/* Use on a section to breathe — 96px top/bottom */
+.section-breath {
+  margin-top: 6rem;
+}
+.section-breath-lg {
+  margin-top: 8rem;
 }
