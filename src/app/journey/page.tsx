@@ -46,6 +46,18 @@ const GOAL_TYPE_ICONS: Record<string, ComponentType<{ size?: number }>> = {
   custom: Target,
 };
 
+// Emoji mapping for each goal type — used as the large hero character
+// in the scene card. Emojis give a more illustrated, story-book feel
+// than monochrome line icons.
+const GOAL_TYPE_EMOJI: Record<string, string> = {
+  emergency_fund: "🛡️",
+  down_payment: "🏠",
+  car_purchase: "🚗",
+  portfolio_growth: "📈",
+  debt_reduction: "⭐",
+  custom: "🎯",
+};
+
 type NodeKind =
   | "start"
   | "milestone"
@@ -60,7 +72,8 @@ interface JourneyNode {
   label: string;
   sublabel: string;
   dateLabel: string; // "Month 4 · Aug 2026" style
-  icon: ComponentType<{ size?: number }>;
+  icon: ComponentType<{ size?: number }>; // small icon for list/minimap
+  emoji: string; // large hero character for the scene card
   kind: NodeKind;
   netWorth: number;
   stepNumber: number;
@@ -410,6 +423,7 @@ export default function JourneyPage() {
       label: string;
       sublabel: string;
       icon: ComponentType<{ size?: number }>;
+      emoji: string;
       accent: string;
     }[] = [];
 
@@ -427,6 +441,7 @@ export default function JourneyPage() {
             label: "Debt cleared",
             sublabel: "A weight lifted — freed capacity flows to goals",
             icon: Flame,
+            emoji: "🔥",
             accent: "var(--color-warning)",
           });
         }
@@ -442,6 +457,7 @@ export default function JourneyPage() {
             label: g.name,
             sublabel: `Goal reached — ${formatCurrency(g.targetAmount, { compact: true })} secured`,
             icon: GOAL_TYPE_ICONS[g.type] ?? Target,
+            emoji: GOAL_TYPE_EMOJI[g.type] ?? "🎯",
             accent: "var(--color-accent)",
           });
         }
@@ -456,6 +472,7 @@ export default function JourneyPage() {
       label: string;
       sublabel: string;
       icon: ComponentType<{ size?: number }>;
+      emoji: string;
     }[] = [];
 
     const monthlyObligations =
@@ -485,6 +502,7 @@ export default function JourneyPage() {
         label: "Start an emergency fund",
         sublabel: `Liquid reserves cover only ${coverageMonths.toFixed(1)} months. Aim for 3.`,
         icon: PiggyBank,
+        emoji: "🐖",
       });
     }
     if (productivePct < 20 && !hasGrowthGoal) {
@@ -493,6 +511,7 @@ export default function JourneyPage() {
         label: "Grow productive capital",
         sublabel: `Only ${Math.round(productivePct)}% of wealth is invested — add a growth goal.`,
         icon: LineChart,
+        emoji: "📊",
       });
     }
     if (debtRatio > 15 && !hasDebtGoal) {
@@ -501,6 +520,7 @@ export default function JourneyPage() {
         label: "Debt avalanche",
         sublabel: `Debt service is ${debtRatio.toFixed(1)}% of inflow — prioritise payoff.`,
         icon: Scale,
+        emoji: "⚖️",
       });
     }
 
@@ -511,6 +531,7 @@ export default function JourneyPage() {
       label: string;
       sublabel: string;
       icon: ComponentType<{ size?: number }>;
+      emoji: string;
     }[] = [
       {
         month: 24,
@@ -518,6 +539,7 @@ export default function JourneyPage() {
         sublabel:
           "Reassess your stance: has your income, life, or appetite for risk shifted?",
         icon: CalendarClock,
+        emoji: "📅",
       },
     ];
 
@@ -529,6 +551,7 @@ export default function JourneyPage() {
       label: string;
       sublabel: string;
       icon: ComponentType<{ size?: number }>;
+      emoji: string;
       accent: string;
       badge?: string;
     };
@@ -540,6 +563,7 @@ export default function JourneyPage() {
       label: "You are here",
       sublabel: "The starting point",
       icon: MapPin,
+      emoji: "📍",
       accent: "var(--color-ink)",
     });
     preNodes.set(HORIZON, {
@@ -548,6 +572,7 @@ export default function JourneyPage() {
       label: "Five years ahead",
       sublabel: "Destination",
       icon: Trophy,
+      emoji: "🏆",
       accent: "var(--color-accent)",
     });
 
@@ -558,6 +583,7 @@ export default function JourneyPage() {
         label: e.label,
         sublabel: e.sublabel,
         icon: e.icon,
+        emoji: e.emoji,
         accent: e.accent,
       });
     }
@@ -569,6 +595,7 @@ export default function JourneyPage() {
           label: r.label,
           sublabel: r.sublabel,
           icon: r.icon,
+          emoji: r.emoji,
           accent: "var(--color-accent)",
           badge: "Recommended",
         });
@@ -582,6 +609,7 @@ export default function JourneyPage() {
           label: a.label,
           sublabel: a.sublabel,
           icon: a.icon,
+          emoji: a.emoji,
           accent: "var(--color-text-secondary)",
           badge: "Advisory",
         });
@@ -596,6 +624,7 @@ export default function JourneyPage() {
           label: `${y / 12} year${y / 12 > 1 ? "s" : ""} in`,
           sublabel: "Checkpoint",
           icon: Circle,
+          emoji: "⏳",
           accent: "var(--color-text-muted)",
         });
       }
@@ -616,6 +645,7 @@ export default function JourneyPage() {
         sublabel: pre.sublabel,
         dateLabel,
         icon: pre.icon,
+        emoji: pre.emoji,
         kind: pre.kind,
         netWorth: netWorthAt[pre.month]!,
         stepNumber: idx + 1,
@@ -652,7 +682,6 @@ export default function JourneyPage() {
   const currentNode = nodes[currentIdx] ?? nodes[0]!;
   const currentZone = zoneForMonth(currentNode.month);
   const ZoneIcon = currentZone.icon;
-  const CurrentIcon = currentNode.icon;
   const canPrev = currentIdx > 0;
   const canNext = currentIdx < nodes.length - 1;
   const goto = (idx: number) => {
@@ -803,27 +832,47 @@ export default function JourneyPage() {
             {/* Left: icon chip + date + kind */}
             <div className="col-span-12 flex flex-col items-center gap-5 lg:col-span-4 lg:items-start">
               <div className="relative flex items-center justify-center">
+                {/* Outer pulse halo */}
                 <div
                   className="absolute rounded-full"
                   style={{
-                    width: "140px",
-                    height: "140px",
+                    width: "168px",
+                    height: "168px",
                     backgroundColor: currentNode.accent,
-                    opacity: 0.14,
+                    opacity: 0.12,
                     animation: "journeyHalo 3s ease-in-out infinite",
                   }}
                 />
+                {/* Decorative ring */}
                 <div
-                  className="relative flex items-center justify-center rounded-3xl"
+                  className="absolute rounded-full"
                   style={{
-                    width: "112px",
-                    height: "112px",
-                    backgroundColor: currentNode.accent,
-                    color: "#ffffff",
-                    boxShadow: `0 20px 56px -14px ${currentNode.accent}66`,
+                    width: "136px",
+                    height: "136px",
+                    border: `1.5px dashed ${currentNode.accent}`,
+                    opacity: 0.35,
+                  }}
+                />
+                {/* Main disc with gradient */}
+                <div
+                  className="relative flex items-center justify-center rounded-full"
+                  style={{
+                    width: "120px",
+                    height: "120px",
+                    background: `radial-gradient(circle at 35% 30%, #ffffff 0%, ${currentNode.accent}20 45%, ${currentNode.accent}0d 100%)`,
+                    boxShadow: `0 22px 60px -16px ${currentNode.accent}66, inset 0 0 0 1px ${currentNode.accent}33`,
                   }}
                 >
-                  <CurrentIcon size={44} />
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      fontSize: "68px",
+                      lineHeight: 1,
+                      filter: `drop-shadow(0 6px 14px ${currentNode.accent}55)`,
+                    }}
+                  >
+                    {currentNode.emoji}
+                  </span>
                 </div>
               </div>
               <div className="text-center lg:text-left">
