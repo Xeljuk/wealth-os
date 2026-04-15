@@ -204,7 +204,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 /* ── Skeleton ─────────────────────────────────────────────────── */
-function MonthCloseSkeleton() {
+export function MonthCloseSkeleton() {
   return (
     <>
       {/* Stats grid */}

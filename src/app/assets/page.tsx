@@ -1052,7 +1052,7 @@ function LayerRow({
 }
 
 /* ── Skeleton ─────────────────────────────────────────────────── */
-function AssetsSkeleton() {
+export function AssetsSkeleton() {
   return (
     <>
       {/* Hero total */}

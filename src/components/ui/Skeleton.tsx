@@ -48,6 +48,11 @@ export function Skeleton({
  *     milliseconds so the eye has time to parse it.
  *
  * Defaults: threshold 200ms, minDuration 300ms.
+ *
+ * Dev/QA escape hatch: append `?skeleton=1` to any URL to force-render the
+ * skeleton regardless of the actual loading state. Useful for manual
+ * inspection on localhost where snapshot fetches finish in <100ms and the
+ * 200ms threshold never triggers.
  */
 export function useDelayedLoading(
   isLoading: boolean,
@@ -77,5 +82,19 @@ export function useDelayedLoading(
     return () => clearTimeout(t);
   }, [isLoading, show, threshold, minDuration]);
 
-  return show;
+  const forced = useForceSkeletonFlag();
+  return show || forced;
+}
+
+function useForceSkeletonFlag(): boolean {
+  const [forced, setForced] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const check = () =>
+      setForced(new URLSearchParams(window.location.search).get("skeleton") === "1");
+    check();
+    window.addEventListener("popstate", check);
+    return () => window.removeEventListener("popstate", check);
+  }, []);
+  return forced;
 }

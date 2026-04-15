@@ -879,7 +879,7 @@ export default function ScenarioSimulator() {
 }
 
 /* ── Skeleton ─────────────────────────────────────────────────── */
-function ScenariosSkeleton() {
+export function ScenariosSkeleton() {
   return (
     <>
       {/* 3 stance cards */}

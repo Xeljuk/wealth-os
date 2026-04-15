@@ -759,7 +759,7 @@ function MiniStat({
 }
 
 /* ── Skeleton ─────────────────────────────────────────────────── */
-function CashFlowSkeleton() {
+export function CashFlowSkeleton() {
   return (
     <>
       {/* Hero: allocatable surplus + status */}

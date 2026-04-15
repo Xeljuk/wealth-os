@@ -686,7 +686,7 @@ export default function CopilotPage() {
 }
 
 /* ── Skeleton ─────────────────────────────────────────────────── */
-function CopilotSkeleton() {
+export function CopilotSkeleton() {
   return (
     <>
       {/* Narrative strip + data sources rail */}

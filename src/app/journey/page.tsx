@@ -1388,7 +1388,7 @@ function MiniStat({
 }
 
 /* ── Skeleton ─────────────────────────────────────────────────── */
-function JourneySkeleton() {
+export function JourneySkeleton() {
   return (
     <>
       {/* Stepper scene card */}

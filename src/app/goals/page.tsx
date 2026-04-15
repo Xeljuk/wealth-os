@@ -926,7 +926,7 @@ function MiniStat({
 }
 
 /* ── Skeleton ─────────────────────────────────────────────────── */
-function GoalsSkeleton() {
+export function GoalsSkeleton() {
   return (
     <>
       {/* Hero numeric + progress */}

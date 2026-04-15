@@ -138,7 +138,7 @@ export default function WealthOverview() {
 }
 
 /* ── Skeleton ─────────────────────────────────────────────────── */
-function WealthOverviewSkeleton() {
+export function WealthOverviewSkeleton() {
   return (
     <>
       {/* Hero: net worth number + chart stage */}
