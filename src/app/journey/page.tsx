@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
 import {
@@ -24,6 +24,13 @@ import {
   LineChart,
   Scale,
   CalendarClock,
+  ChevronLeft,
+  ChevronRight,
+  Play,
+  Pause,
+  Mountain,
+  Sunrise,
+  Crown,
 } from "lucide-react";
 import Link from "next/link";
 import type { ComponentType } from "react";
@@ -63,7 +70,237 @@ interface JourneyNode {
 
 const HORIZON = 60;
 
+/* ── Zones — atmospheric regions of the journey ───────────────── */
+
+interface Zone {
+  id: string;
+  label: string;
+  tagline: string;
+  monthStart: number;
+  monthEnd: number;
+  bg: string;
+  accent: string;
+  icon: ComponentType<{ size?: number }>;
+}
+
+const ZONES: Zone[] = [
+  {
+    id: "sprint",
+    label: "Year 1 · The Sprint",
+    tagline: "Clear what weighs you down",
+    monthStart: 0,
+    monthEnd: 12,
+    bg: "#f3eee4", // warm vellum deep
+    accent: "#b56a12", // warning / earthy amber
+    icon: Sunrise,
+  },
+  {
+    id: "climb",
+    label: "Years 2–3 · The Climb",
+    tagline: "Build momentum in every bucket",
+    monthStart: 13,
+    monthEnd: 36,
+    bg: "#e8efeb", // cool sage wash
+    accent: "#45645e", // sage accent
+    icon: Mountain,
+  },
+  {
+    id: "plateau",
+    label: "Years 4–5 · The Plateau",
+    tagline: "Compound quietly, reach the summit",
+    monthStart: 37,
+    monthEnd: 60,
+    bg: "#dfe7e3", // deeper moss wash
+    accent: "#2f4641", // moss
+    icon: Crown,
+  },
+];
+
+function zoneForMonth(month: number): Zone {
+  return (
+    ZONES.find((z) => month >= z.monthStart && month <= z.monthEnd) ?? ZONES[0]!
+  );
+}
+
 /* ── Page ─────────────────────────────────────────────────────── */
+/* ── MinimapStrip — compact horizontal overview ──────────────── */
+
+function MinimapStrip({
+  nodes,
+  currentIdx,
+  onJump,
+}: {
+  nodes: JourneyNode[];
+  currentIdx: number;
+  onJump: (idx: number) => void;
+}) {
+  return (
+    <div
+      className="relative h-[78px] w-full overflow-visible rounded-2xl px-8 py-4"
+      style={{ backgroundColor: "var(--color-surface)" }}
+    >
+      {/* Guide line across the middle — dashed hairline */}
+      <div
+        className="absolute left-8 right-8 top-1/2 h-px -translate-y-1/2"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(90deg, var(--color-border) 0 4px, transparent 4px 8px)",
+        }}
+      />
+
+      {/* Zone band markers */}
+      {ZONES.map((zone, zi) => {
+        const startPct = (zone.monthStart / HORIZON) * 100;
+        const widthPct = ((zone.monthEnd - zone.monthStart) / HORIZON) * 100;
+        return (
+          <div
+            key={zone.id}
+            className="absolute bottom-1 top-1 rounded-md"
+            style={{
+              left: `calc(32px + ${startPct}% * (100% - 64px) / 100)`,
+              width: `calc(${widthPct}% * (100% - 64px) / 100)`,
+              backgroundColor: zone.accent,
+              opacity: 0.06,
+              pointerEvents: "none",
+              // Small offset for separation between bands
+              marginLeft: zi === 0 ? 0 : 1,
+            }}
+          />
+        );
+      })}
+
+      {/* Node dots */}
+      {nodes.map((node, i) => {
+        const leftPct = (node.month / HORIZON) * 100;
+        const isCurrent = i === currentIdx;
+        const isReached = i < currentIdx;
+
+        // Kind → dot styling
+        const kindMeta = getDotMeta(node.kind);
+        const size = isCurrent ? 18 : kindMeta.size;
+        const bg = isCurrent
+          ? node.accent
+          : kindMeta.filled
+            ? isReached
+              ? node.accent
+              : node.accent + "88"
+            : "var(--color-surface)";
+        const border = kindMeta.border
+          ? `${kindMeta.borderWidth} ${kindMeta.borderStyle} ${kindMeta.borderColor(node.accent)}`
+          : "none";
+
+        return (
+          <button
+            key={node.id}
+            type="button"
+            onClick={() => onJump(i)}
+            className="absolute top-1/2 rounded-full transition-all duration-200 hover:scale-125"
+            style={{
+              left: `calc(32px + ${leftPct}% * (100% - 64px) / 100)`,
+              width: `${size}px`,
+              height: `${size}px`,
+              transform: "translate(-50%, -50%)",
+              backgroundColor: bg,
+              border,
+              boxShadow: isCurrent
+                ? `0 0 0 5px ${node.accent}22, 0 4px 16px -4px ${node.accent}80`
+                : "none",
+              zIndex: isCurrent ? 20 : kindMeta.filled ? 10 : 5,
+            }}
+            title={`${node.label} · ${node.dateLabel}`}
+            aria-label={`Jump to ${node.label}`}
+          />
+        );
+      })}
+
+      {/* "You are here" marker label */}
+      {nodes[currentIdx] && (
+        <div
+          className="pointer-events-none absolute transition-all duration-300"
+          style={{
+            left: `calc(32px + ${(nodes[currentIdx].month / HORIZON) * 100}% * (100% - 64px) / 100)`,
+            top: "calc(50% - 30px)",
+            transform: "translateX(-50%)",
+          }}
+        >
+          <span
+            className="whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em]"
+            style={{
+              backgroundColor: nodes[currentIdx].accent,
+              color: "#ffffff",
+            }}
+          >
+            You
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface DotMeta {
+  size: number;
+  filled: boolean;
+  border: boolean;
+  borderWidth: string;
+  borderStyle: "dashed" | "dotted" | "solid";
+  borderColor: (accent: string) => string;
+}
+
+function getDotMeta(kind: NodeKind): DotMeta {
+  switch (kind) {
+    case "start":
+    case "final":
+      return {
+        size: 13,
+        filled: true,
+        border: false,
+        borderWidth: "0",
+        borderStyle: "solid",
+        borderColor: () => "",
+      };
+    case "milestone":
+      return {
+        size: 11,
+        filled: true,
+        border: false,
+        borderWidth: "0",
+        borderStyle: "solid",
+        borderColor: () => "",
+      };
+    case "recommendation":
+      return {
+        size: 10,
+        filled: false,
+        border: true,
+        borderWidth: "1.75px",
+        borderStyle: "dashed",
+        borderColor: (accent) => accent,
+      };
+    case "advisory":
+      return {
+        size: 10,
+        filled: false,
+        border: true,
+        borderWidth: "1.75px",
+        borderStyle: "dotted",
+        borderColor: () => "var(--color-text-secondary)",
+      };
+    case "checkpoint":
+    default:
+      return {
+        size: 8,
+        filled: false,
+        border: true,
+        borderWidth: "1.5px",
+        borderStyle: "dashed",
+        borderColor: () => "var(--color-text-muted)",
+      };
+  }
+}
+
+/* ── Page ─────────────────────────────────────────────────────── */
+
 
 export default function JourneyPage() {
   const { snapshot, goalTrajectories, activePlan, alphaStatus } = useWealth();
@@ -307,35 +544,40 @@ export default function JourneyPage() {
     });
   }, [snapshot, bs, cf, goalTrajectories, activePlan]);
 
-  // ── Path geometry ───────────────────────────────────────────
-  const NODE_SPACING = 230; // px between nodes vertically (extra room for dates + badges)
-  const TOP_PAD = 80;
-  const BOTTOM_PAD = 120;
-  const containerHeight =
-    TOP_PAD + (nodes.length - 1) * NODE_SPACING + BOTTOM_PAD;
+  // ── Stepper state ───────────────────────────────────────────
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [autoPlay, setAutoPlay] = useState(false);
 
-  // SVG viewBox coordinates (x: 0-1000, y: 0-containerHeight)
-  const VB_W = 1000;
-  const X_LEFT = 250;
-  const X_RIGHT = 750;
+  // If node count changes (data update), clamp the index
+  useEffect(() => {
+    if (currentIdx >= nodes.length) setCurrentIdx(0);
+  }, [nodes.length, currentIdx]);
 
-  const nodePos = (i: number) => ({
-    x: i % 2 === 0 ? X_LEFT : X_RIGHT,
-    y: TOP_PAD + i * NODE_SPACING,
-  });
+  // Auto-play driver
+  useEffect(() => {
+    if (!autoPlay) return;
+    const interval = setInterval(() => {
+      setCurrentIdx((i) => {
+        if (i >= nodes.length - 1) {
+          setAutoPlay(false);
+          return i;
+        }
+        return i + 1;
+      });
+    }, 2800);
+    return () => clearInterval(interval);
+  }, [autoPlay, nodes.length]);
 
-  // Build connecting path with smooth cubic bezier S-curves
-  let pathD = "";
-  for (let i = 0; i < nodes.length; i++) {
-    const { x, y } = nodePos(i);
-    if (i === 0) {
-      pathD += `M ${x} ${y} `;
-    } else {
-      const prev = nodePos(i - 1);
-      const midY = (prev.y + y) / 2;
-      pathD += `C ${prev.x} ${midY}, ${x} ${midY}, ${x} ${y} `;
-    }
-  }
+  const currentNode = nodes[currentIdx] ?? nodes[0]!;
+  const currentZone = zoneForMonth(currentNode.month);
+  const ZoneIcon = currentZone.icon;
+  const CurrentIcon = currentNode.icon;
+  const canPrev = currentIdx > 0;
+  const canNext = currentIdx < nodes.length - 1;
+  const goto = (idx: number) => {
+    setCurrentIdx(Math.max(0, Math.min(nodes.length - 1, idx)));
+    setAutoPlay(false);
+  };
 
   const finalNetWorth = nodes[nodes.length - 1]?.netWorth ?? bs.netWorth;
   const startNetWorth = nodes[0]?.netWorth ?? bs.netWorth;
@@ -416,110 +658,261 @@ export default function JourneyPage() {
         </div>
       </div>
 
-      {/* ── The journey path ──────────────────────────────────── */}
+      {/* ── Live stepper — one scene at a time ────────────────── */}
       <div className="section-breath-lg hairline-top pt-16">
-        <div className="mb-10 max-w-2xl">
-          <p className="label-meta">The path</p>
-          <h2 className="display-page mt-2">Walk it step by step.</h2>
+        <div className="mb-8 max-w-2xl">
+          <p className="label-meta">The walk</p>
+          <h2 className="display-page mt-2">One step at a time.</h2>
           <p className="lead-text mt-4">
-            Read top to bottom. Each node is a checkpoint your plan will hit
-            under the current stance — the path meanders between them so you
-            can feel the distance covered.
+            Step through each moment along the path. The background shifts as
+            you move through the three zones of the five-year walk. Hit play
+            to let the journey walk itself.
           </p>
         </div>
 
-        {/* Path container */}
-        <div className="mx-auto w-full max-w-[920px]">
+        {/* Scene card with zone-colored backdrop */}
+        <div
+          className="relative overflow-hidden rounded-3xl"
+          style={{
+            backgroundColor: currentZone.bg,
+            transition:
+              "background-color 0.9s cubic-bezier(0.22, 0.61, 0.36, 1)",
+            minHeight: "520px",
+          }}
+        >
+          {/* Zone atmosphere — subtle dotted backdrop */}
           <div
-            className="relative"
-            style={{ height: `${containerHeight}px` }}
-          >
-            {/* SVG layer for the connecting curves */}
-            <svg
-              className="absolute inset-0 h-full w-full"
-              viewBox={`0 0 ${VB_W} ${containerHeight}`}
-              preserveAspectRatio="none"
-              style={{ pointerEvents: "none" }}
+            className="pointer-events-none absolute inset-0 opacity-50"
+            style={{
+              backgroundImage: `radial-gradient(circle at 15% 20%, ${currentZone.accent}18 0%, transparent 35%), radial-gradient(circle at 85% 80%, ${currentZone.accent}14 0%, transparent 40%)`,
+              transition: "background-image 0.9s ease-out",
+            }}
+          />
+
+          {/* Header row — zone pill + chapter counter */}
+          <div className="relative flex items-center justify-between px-9 pt-8">
+            <div
+              key={currentZone.id}
+              className="inline-flex items-center gap-2 rounded-full px-4 py-1.5"
+              style={{
+                backgroundColor: currentZone.accent + "24",
+                color: currentZone.accent,
+                transition: "all 0.6s ease-out",
+              }}
             >
-              <defs>
-                <linearGradient
-                  id="journey-path-grad"
-                  x1="0"
-                  y1="0"
-                  x2="0"
-                  y2="1"
-                >
-                  <stop
-                    offset="0%"
-                    stopColor="var(--color-ink)"
-                    stopOpacity="0.6"
-                  />
-                  <stop
-                    offset="100%"
-                    stopColor="var(--color-accent)"
-                    stopOpacity="0.8"
-                  />
-                </linearGradient>
-                <style>{`
-                  @keyframes journeyDraw {
-                    from { stroke-dashoffset: 3000; }
-                    to { stroke-dashoffset: 0; }
-                  }
-                  .journey-path {
-                    stroke-dasharray: 6 10;
-                    animation: journeyDraw 2s cubic-bezier(0.22, 0.61, 0.36, 1) 0.2s backwards;
-                  }
-                  @keyframes journeyNode {
-                    from { opacity: 0; transform: translate(-50%, 10px); }
-                    to { opacity: 1; transform: translate(-50%, 0); }
-                  }
-                  .journey-node {
-                    opacity: 0;
-                    animation: journeyNode 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
-                  }
-                  @keyframes journeyPulse {
-                    0%, 100% { transform: scale(1); opacity: 0.4; }
-                    50% { transform: scale(1.15); opacity: 0.2; }
-                  }
-                  .journey-pulse {
-                    animation: journeyPulse 2.8s ease-in-out infinite;
-                    transform-origin: center;
-                  }
-                `}</style>
-              </defs>
-              <path
-                d={pathD}
-                fill="none"
-                stroke="url(#journey-path-grad)"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="journey-path"
-              />
-            </svg>
+              <ZoneIcon size={13} />
+              <span className="text-[10px] font-bold uppercase tracking-[0.14em]">
+                {currentZone.label}
+              </span>
+            </div>
+            <span
+              className="text-[10px] font-bold uppercase tracking-[0.14em] tabular-nums"
+              style={{ color: "var(--color-text-muted)" }}
+            >
+              Chapter {String(currentIdx + 1).padStart(2, "0")} ·{" "}
+              {String(nodes.length).padStart(2, "0")}
+            </span>
+          </div>
 
-            {/* HTML node layer */}
-            {nodes.map((node, i) => {
-              const pos = nodePos(i);
-              const leftPct = (pos.x / VB_W) * 100;
-              const topPx = pos.y;
-              const delay = 0.4 + i * 0.12;
-
-              return (
+          {/* Scene content — remounts with key to trigger fade animation */}
+          <div
+            key={currentNode.id}
+            className="journey-scene relative grid grid-cols-12 gap-8 px-9 pb-14 pt-8 lg:gap-12"
+          >
+            {/* Left: icon chip + date + kind */}
+            <div className="col-span-12 flex flex-col items-center gap-5 lg:col-span-4 lg:items-start">
+              <div className="relative flex items-center justify-center">
                 <div
-                  key={node.id}
-                  className="journey-node absolute"
+                  className="absolute rounded-full"
                   style={{
-                    left: `${leftPct}%`,
-                    top: `${topPx}px`,
-                    animationDelay: `${delay}s`,
+                    width: "140px",
+                    height: "140px",
+                    backgroundColor: currentNode.accent,
+                    opacity: 0.14,
+                    animation: "journeyHalo 3s ease-in-out infinite",
+                  }}
+                />
+                <div
+                  className="relative flex items-center justify-center rounded-3xl"
+                  style={{
+                    width: "112px",
+                    height: "112px",
+                    backgroundColor: currentNode.accent,
+                    color: "#ffffff",
+                    boxShadow: `0 20px 56px -14px ${currentNode.accent}66`,
                   }}
                 >
-                  <NodeCard node={node} />
+                  <CurrentIcon size={44} />
                 </div>
-              );
-            })}
+              </div>
+              <div className="text-center lg:text-left">
+                <p
+                  className="text-[10px] font-bold uppercase tracking-[0.14em]"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
+                  {currentNode.dateLabel}
+                </p>
+                {currentNode.badge && (
+                  <span
+                    className="mt-2 inline-flex rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em]"
+                    style={{
+                      backgroundColor:
+                        currentNode.kind === "recommendation"
+                          ? "var(--color-accent-light)"
+                          : "var(--color-surface)",
+                      color:
+                        currentNode.kind === "recommendation"
+                          ? "var(--color-accent)"
+                          : "var(--color-text-secondary)",
+                    }}
+                  >
+                    {currentNode.badge}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Right: title + narrative + net worth */}
+            <div className="col-span-12 lg:col-span-8">
+              <h3
+                className="font-bold tracking-tight"
+                style={{
+                  color: "var(--color-ink)",
+                  letterSpacing: "-0.025em",
+                  lineHeight: 1.05,
+                  fontSize: "clamp(2.2rem, 3.8vw, 3rem)",
+                }}
+              >
+                {currentNode.label}
+              </h3>
+              <p
+                className="mt-4 text-[16px] leading-relaxed"
+                style={{ color: "var(--color-text-secondary)" }}
+              >
+                {currentNode.sublabel}
+              </p>
+              <p
+                className="mt-6 text-[12px] italic"
+                style={{ color: "var(--color-text-muted)" }}
+              >
+                {currentZone.tagline}
+              </p>
+              {currentNode.kind !== "checkpoint" &&
+                currentNode.kind !== "advisory" &&
+                currentNode.kind !== "recommendation" && (
+                  <div className="mt-8 flex items-baseline gap-3">
+                    <span
+                      className="text-[10px] font-bold uppercase tracking-[0.14em]"
+                      style={{ color: "var(--color-text-muted)" }}
+                    >
+                      Net worth at this moment
+                    </span>
+                    <span
+                      className="font-bold tabular-nums"
+                      style={{
+                        color: currentNode.accent,
+                        letterSpacing: "-0.02em",
+                        fontSize: "32px",
+                      }}
+                    >
+                      {formatCurrency(currentNode.netWorth, { compact: true })}
+                    </span>
+                  </div>
+                )}
+            </div>
           </div>
+
+          {/* Scene progress bar along the bottom */}
+          <div
+            className="absolute inset-x-0 bottom-0 h-1"
+            style={{ backgroundColor: "rgba(45,52,53,0.08)" }}
+          >
+            <div
+              className="h-full"
+              style={{
+                width: `${((currentIdx + 1) / nodes.length) * 100}%`,
+                backgroundColor: currentZone.accent,
+                transition: "width 0.7s cubic-bezier(0.22, 0.61, 0.36, 1)",
+              }}
+            />
+          </div>
+
+          <style>{`
+            @keyframes journeyHalo {
+              0%, 100% { transform: scale(1); opacity: 0.14; }
+              50% { transform: scale(1.08); opacity: 0.22; }
+            }
+            @keyframes journeyFade {
+              from { opacity: 0; transform: translateY(12px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+            .journey-scene {
+              animation: journeyFade 0.55s cubic-bezier(0.22, 0.61, 0.36, 1);
+            }
+          `}</style>
+        </div>
+
+        {/* Navigation bar */}
+        <div className="mt-6 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => canPrev && goto(currentIdx - 1)}
+            disabled={!canPrev}
+            className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold transition-all hover:opacity-80 disabled:opacity-30"
+            style={{
+              backgroundColor: "var(--color-surface)",
+              color: "var(--color-text-primary)",
+              boxShadow: "0 2px 8px -4px rgba(45,52,53,0.1)",
+            }}
+          >
+            <ChevronLeft size={14} />
+            Previous
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setAutoPlay(!autoPlay)}
+            className="flex items-center gap-2 rounded-full px-5 py-2.5 text-[12px] font-bold uppercase tracking-[0.1em] transition-all hover:opacity-90"
+            style={{
+              backgroundColor: autoPlay
+                ? "var(--color-accent)"
+                : "var(--color-surface)",
+              color: autoPlay ? "#ffffff" : "var(--color-accent)",
+              border: autoPlay
+                ? "1px solid var(--color-accent)"
+                : "1px solid var(--color-accent)",
+              boxShadow: autoPlay
+                ? "0 4px 16px -6px rgba(69,100,94,0.45)"
+                : "none",
+            }}
+          >
+            {autoPlay ? <Pause size={12} /> : <Play size={12} />}
+            {autoPlay ? "Pause walk" : "Walk it"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => canNext && goto(currentIdx + 1)}
+            disabled={!canNext}
+            className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold transition-all hover:opacity-80 disabled:opacity-30"
+            style={{
+              backgroundColor: "var(--color-surface)",
+              color: "var(--color-text-primary)",
+              boxShadow: "0 2px 8px -4px rgba(45,52,53,0.1)",
+            }}
+          >
+            Next
+            <ChevronRight size={14} />
+          </button>
+        </div>
+
+        {/* Minimap strip */}
+        <div className="mt-4">
+          <MinimapStrip
+            nodes={nodes}
+            currentIdx={currentIdx}
+            onJump={goto}
+          />
         </div>
       </div>
 
@@ -634,178 +1027,6 @@ export default function JourneyPage() {
   );
 }
 
-/* ── NodeCard ─────────────────────────────────────────────────── */
-
-function NodeCard({ node }: { node: JourneyNode }) {
-  const Icon = node.icon;
-  const isStart = node.kind === "start";
-  const isFinal = node.kind === "final";
-  const isMilestone = node.kind === "milestone";
-  const isCheckpoint = node.kind === "checkpoint";
-  const isRecommendation = node.kind === "recommendation";
-  const isAdvisory = node.kind === "advisory";
-
-  // Sizing
-  const circleSize =
-    isStart || isFinal
-      ? 128
-      : isMilestone
-        ? 104
-        : isRecommendation || isAdvisory
-          ? 84
-          : 76;
-  const iconSize =
-    isStart || isFinal ? 32 : isMilestone ? 24 : isRecommendation || isAdvisory ? 20 : 18;
-  const haloSize = circleSize + 32;
-
-  // Solid vs outlined presentation
-  const isFilled = isStart || isFinal || isMilestone;
-  const circleBg = isFilled ? node.accent : "var(--color-surface)";
-  const iconColor = isFilled ? "#ffffff" : node.accent;
-  const borderStyle = isCheckpoint
-    ? `2px dashed ${node.accent}`
-    : isRecommendation
-      ? `2px dashed var(--color-accent)`
-      : isAdvisory
-        ? `2px dotted var(--color-text-secondary)`
-        : "none";
-
-  return (
-    <div
-      className="flex flex-col items-center gap-3"
-      style={{ transform: "translateX(-50%)" }}
-    >
-      {/* Top flag — "You are here" for start, badges for others */}
-      {isStart && (
-        <div
-          className="mb-1 flex items-center gap-1.5 rounded-full px-3 py-1"
-          style={{
-            backgroundColor: "var(--color-accent)",
-            color: "#ffffff",
-          }}
-        >
-          <span
-            className="h-1.5 w-1.5 animate-pulse rounded-full"
-            style={{ backgroundColor: "#ffffff" }}
-          />
-          <span className="text-[9px] font-bold uppercase tracking-[0.14em]">
-            You are here
-          </span>
-        </div>
-      )}
-      {node.badge && !isStart && (
-        <div
-          className="mb-1 rounded-full px-2.5 py-0.5"
-          style={{
-            backgroundColor: isRecommendation
-              ? "var(--color-accent-light)"
-              : "var(--color-surface-low)",
-            color: isRecommendation
-              ? "var(--color-accent)"
-              : "var(--color-text-secondary)",
-          }}
-        >
-          <span className="text-[9px] font-bold uppercase tracking-[0.14em]">
-            {node.badge}
-          </span>
-        </div>
-      )}
-
-      {/* Circle node */}
-      <div className="relative flex items-center justify-center">
-        {(isStart || isFinal || isMilestone) && (
-          <div
-            className="journey-pulse absolute rounded-full"
-            style={{
-              width: `${haloSize}px`,
-              height: `${haloSize}px`,
-              backgroundColor: node.accent,
-              opacity: 0.2,
-            }}
-          />
-        )}
-        <div
-          className="relative flex items-center justify-center rounded-full"
-          style={{
-            width: `${circleSize}px`,
-            height: `${circleSize}px`,
-            backgroundColor: circleBg,
-            border: borderStyle,
-            boxShadow:
-              isStart || isFinal
-                ? `0 12px 40px -10px ${node.accent}88`
-                : isMilestone
-                  ? `0 8px 24px -8px ${node.accent}55`
-                  : "none",
-            color: iconColor,
-          }}
-        >
-          <Icon size={iconSize} />
-        </div>
-        {/* Step badge */}
-        <div
-          className="absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold tabular-nums"
-          style={{
-            backgroundColor: "var(--color-surface)",
-            color: "var(--color-text-primary)",
-            boxShadow: "0 2px 8px -2px rgba(45,52,53,0.2)",
-            border: `1.5px solid ${node.accent}`,
-          }}
-        >
-          {String(node.stepNumber).padStart(2, "0")}
-        </div>
-      </div>
-
-      {/* Label block */}
-      <div
-        className="flex w-[210px] flex-col items-center text-center"
-        style={{ marginTop: "4px" }}
-      >
-        {/* Date line — always visible */}
-        <p
-          className="text-[9px] font-bold uppercase tracking-[0.12em]"
-          style={{ color: "var(--color-text-muted)" }}
-        >
-          {node.dateLabel}
-        </p>
-        <p
-          className="mt-1.5 text-[14px] font-bold leading-tight"
-          style={{
-            color:
-              isCheckpoint || isAdvisory
-                ? "var(--color-text-secondary)"
-                : "var(--color-text-primary)",
-            letterSpacing: "-0.015em",
-          }}
-        >
-          {node.label}
-        </p>
-        <p
-          className="mt-1 text-[10px] leading-snug"
-          style={{ color: "var(--color-text-muted)" }}
-        >
-          {node.sublabel}
-        </p>
-        {!isCheckpoint && !isAdvisory && !isRecommendation && (
-          <div
-            className="mt-2 rounded-md px-2.5 py-1"
-            style={{
-              backgroundColor: "var(--color-surface)",
-              border: `1px solid ${node.accent}33`,
-            }}
-          >
-            <span
-              className="text-[11px] font-semibold tabular-nums"
-              style={{ color: node.accent }}
-            >
-              {formatCurrency(node.netWorth, { compact: true })}
-            </span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 /* ── Helpers ──────────────────────────────────────────────────── */
 
