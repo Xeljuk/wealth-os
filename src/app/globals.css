@@ -344,6 +344,79 @@ body {
   }
 }
 
+/* ── Onboarding finish reveal ────────────────────────────────────
+   Wizard fades + shrinks slightly on exit. The reveal view comes
+   in afterwards with each row sliding up 80ms apart. "Your model
+   is live." caption fades in once the rows have settled. */
+
+@keyframes wizard-fade-out {
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.985);
+  }
+}
+
+.wizard-exiting {
+  animation: wizard-fade-out 200ms ease-out forwards;
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+
+@keyframes reveal-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal-row {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: reveal-row-in 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  will-change: opacity, transform;
+}
+
+.reveal-row-1 { animation-delay: 0ms; }
+.reveal-row-2 { animation-delay: 80ms; }
+.reveal-row-3 { animation-delay: 160ms; }
+.reveal-row-4 { animation-delay: 240ms; }
+.reveal-row-5 { animation-delay: 320ms; }
+.reveal-row-6 { animation-delay: 400ms; }
+
+@keyframes reveal-caption-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal-caption {
+  opacity: 0;
+  animation: reveal-caption-in 500ms ease-out 820ms both;
+  will-change: opacity, transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wizard-exiting {
+    animation: none;
+    opacity: 0;
+  }
+  .reveal-row,
+  .reveal-caption {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* ── Vertical rhythm helpers ─────────────────────────────────── */
 
 /* Use on a section to breathe — 96px top/bottom */

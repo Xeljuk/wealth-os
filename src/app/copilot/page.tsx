@@ -154,6 +154,7 @@ export default function CopilotPage() {
     { period: string; net_worth: number; allocatable_surplus: number; total_debt_service: number }[]
   >([]);
   const abortRef = useRef<AbortController | null>(null);
+  const welcomedRef = useRef(false);
 
   useEffect(() => {
     fetch("/api/snapshot/history", { cache: "no-store" })
@@ -161,6 +162,25 @@ export default function CopilotPage() {
       .then((data) => setHistory(data.rows ?? []))
       .catch(() => setHistory([]));
   }, []);
+
+  // Personalised greeting after onboarding: auto-run a first question
+  // grounded in the user's actual surplus once the snapshot is ready.
+  useEffect(() => {
+    if (welcomedRef.current) return;
+    if (isLoading) return;
+    if (typeof window === "undefined") return;
+    if (sessionStorage.getItem("wealth:justOnboarded") !== "1") return;
+
+    sessionStorage.removeItem("wealth:justOnboarded");
+    welcomedRef.current = true;
+
+    const surplus = snapshot.cashFlow.allocatableSurplus;
+    const surplusText = formatCurrency(surplus, { compact: true });
+    const prompt = `I just finished setting up my model. I have about ${surplusText} left over each month. Walk me through what this means for my goals and what I should focus on first.`;
+    // askCopilot is hoisted (function declaration), safe to call here.
+    askCopilot(prompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, snapshot.cashFlow.allocatableSurplus]);
 
   const {
     snapshot,

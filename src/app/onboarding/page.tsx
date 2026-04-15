@@ -1,11 +1,16 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useWealth } from "@/lib/wealth-context";
 import type { AlphaIntakePayload } from "@/lib/alpha-intake";
 import { formatCurrency } from "@/lib/format";
 import { Loader2, ArrowRight, ArrowLeft } from "lucide-react";
+
+type Phase = "wizard" | "exiting" | "reveal";
+
+const REVEAL_HOLD_MS = 2700;
+const JUST_ONBOARDED_KEY = "wealth:justOnboarded";
 
 type StepId = "hello" | "income" | "expenses" | "debts" | "goal";
 
@@ -51,9 +56,22 @@ export default function OnboardingPage() {
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phase, setPhase] = useState<Phase>("wizard");
 
   const step = STEP_ORDER[stepIdx]!;
   const isLast = stepIdx === STEP_ORDER.length - 1;
+
+  // After the reveal animation finishes, sit for a beat then hand off.
+  useEffect(() => {
+    if (phase !== "reveal") return;
+    const t = setTimeout(() => {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(JUST_ONBOARDED_KEY, "1");
+      }
+      router.push("/copilot");
+    }, REVEAL_HOLD_MS);
+    return () => clearTimeout(t);
+  }, [phase, router]);
 
   const canAdvance = useMemo(() => {
     if (step === "hello") return true;
@@ -121,7 +139,9 @@ export default function OnboardingPage() {
         throw new Error(body?.message || `HTTP ${res.status}`);
       }
       await refreshSnapshot();
-      router.push("/copilot");
+      // Fade the wizard out, then swap to the reveal view.
+      setPhase("exiting");
+      setTimeout(() => setPhase("reveal"), 220);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save.");
       setSaving(false);
@@ -149,12 +169,20 @@ export default function OnboardingPage() {
     n(draft.variableExpenses) -
     n(draft.debtService);
 
+  if (phase === "reveal") {
+    return <OnboardingReveal draft={draft} />;
+  }
+
   return (
     <div
       className="flex min-h-screen flex-col"
       style={{ backgroundColor: "var(--color-vellum-deep)" }}
     >
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-6 py-12">
+      <div
+        className={`mx-auto flex w-full max-w-2xl flex-1 flex-col px-6 py-12 ${
+          phase === "exiting" ? "wizard-exiting" : ""
+        }`}
+      >
         <Progress idx={stepIdx} total={STEP_ORDER.length} />
 
         <div className="flex flex-1 flex-col justify-center py-12">
@@ -485,6 +513,86 @@ function TextBig({
           color: "var(--color-text-primary)",
         }}
       />
+    </div>
+  );
+}
+
+/* ── Finish reveal ────────────────────────────────────────────────
+   The quiet acknowledgment. Numbers from the wizard slide up one
+   by one, then "Your model is live." fades in under them. No
+   confetti, no sound — professional and intentional. */
+function OnboardingReveal({ draft }: { draft: Draft }) {
+  const income = n(draft.salary) + n(draft.otherIncome);
+  const expenses = n(draft.fixedExpenses) + n(draft.variableExpenses);
+  const leftover = income - expenses - n(draft.debtService);
+  const debt = n(draft.debtBalance);
+  const goalName = draft.goalName.trim() || "Your goal";
+
+  const rows: { label: string; value: string; emphasis?: boolean }[] = [
+    { label: "Monthly income", value: formatCurrency(income) },
+    { label: "Monthly spend", value: formatCurrency(expenses) },
+    { label: "Left over", value: formatCurrency(leftover), emphasis: true },
+    { label: "Debt balance", value: formatCurrency(debt) },
+    { label: "Goal", value: goalName },
+  ];
+
+  return (
+    <div
+      className="flex min-h-screen flex-col items-center justify-center px-6"
+      style={{ backgroundColor: "var(--color-vellum-deep)" }}
+    >
+      <div className="reveal-container w-full max-w-lg">
+        <p
+          className="reveal-row reveal-row-1 label-meta text-center"
+          style={{ color: "var(--color-text-muted)" }}
+        >
+          Your financial model
+        </p>
+
+        <div
+          className="mt-8 rounded-3xl px-10 py-10"
+          style={{
+            backgroundColor: "var(--color-surface)",
+            boxShadow:
+              "0 24px 72px -28px rgba(45,52,53,0.14), 0 1px 0 0 rgba(45,52,53,0.04)",
+          }}
+        >
+          <div className="flex flex-col gap-5">
+            {rows.map((row, i) => (
+              <div
+                key={row.label}
+                className={`reveal-row reveal-row-${i + 2} flex items-baseline justify-between border-b pb-4 last:border-b-0 last:pb-0`}
+                style={{ borderColor: "var(--color-border-light)" }}
+              >
+                <span
+                  className="text-[13px] font-medium"
+                  style={{ color: "var(--color-text-muted)" }}
+                >
+                  {row.label}
+                </span>
+                <span
+                  className="text-[19px] font-semibold tabular-nums tracking-tight"
+                  style={{
+                    color: row.emphasis
+                      ? "var(--color-accent)"
+                      : "var(--color-text-primary)",
+                    letterSpacing: "-0.015em",
+                  }}
+                >
+                  {row.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p
+          className="reveal-caption mt-10 text-center text-[15px]"
+          style={{ color: "var(--color-text-secondary)" }}
+        >
+          Your model is live.
+        </p>
+      </div>
     </div>
   );
 }
