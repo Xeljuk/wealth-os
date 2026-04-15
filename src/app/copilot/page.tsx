@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, Fragment } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
+import { Skeleton, useDelayedLoading } from "@/components/ui/Skeleton";
 import { formatCurrency, formatMonth } from "@/lib/format";
 import type { PlanStance } from "@/lib/types";
 import Link from "next/link";
@@ -168,7 +169,9 @@ export default function CopilotPage() {
     totalGoalRequired,
     overcommitRatio,
     alphaStatus,
+    isLoading,
   } = useWealth();
+  const showSkeleton = useDelayedLoading(isLoading);
 
   const { balanceSheet: bs, cashFlow: cf, profile, goals } = snapshot;
 
@@ -289,6 +292,18 @@ export default function CopilotPage() {
       Icon: GitBranch,
     },
   ];
+
+  if (showSkeleton) {
+    return (
+      <PageShell
+        eyebrow={`AI Copilot · ${formatMonth(snapshot.period)}`}
+        title="Your wealth strategist, on call."
+        subtitle={`Synthesises ${profile.name}'s current model — balance sheet, cash flow, goals, scenarios — into plain-language guidance. Ground every answer in your real numbers.`}
+      >
+        <CopilotSkeleton />
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell
@@ -667,5 +682,68 @@ export default function CopilotPage() {
         </div>
       </div>
     </PageShell>
+  );
+}
+
+/* ── Skeleton ─────────────────────────────────────────────────── */
+function CopilotSkeleton() {
+  return (
+    <>
+      {/* Narrative strip + data sources rail */}
+      <div className="grid grid-cols-12 items-start gap-6">
+        <div className="col-span-12 lg:col-span-8 flex flex-col gap-4">
+          <Skeleton width={140} height={12} />
+          <Skeleton width="100%" height={18} />
+          <Skeleton width="95%" height={18} />
+          <Skeleton width="90%" height={18} />
+          <Skeleton width="80%" height={18} />
+          <Skeleton width="70%" height={18} />
+        </div>
+        <div className="col-span-12 lg:col-span-4">
+          <div
+            className="flex flex-col gap-5 border-l pl-6"
+            style={{ borderColor: "var(--color-border-light)" }}
+          >
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex flex-col gap-2">
+                <Skeleton width={80} height={10} />
+                <Skeleton width={130} height={16} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Key tensions */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <div className="mb-8 flex flex-col gap-3">
+          <Skeleton width={110} height={12} />
+          <Skeleton width={380} height={36} />
+        </div>
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex flex-col gap-2 border-l-2 py-1 pl-5" style={{ borderLeftColor: "var(--color-border-light)" }}>
+              <Skeleton width="60%" height={16} />
+              <Skeleton width="100%" height={12} />
+              <Skeleton width="85%" height={12} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Preset question tiles */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <div className="mb-8 flex flex-col gap-3">
+          <Skeleton width={120} height={12} />
+          <Skeleton width={360} height={36} />
+          <Skeleton width="55%" height={14} />
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} width="100%" height={92} rounded="rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    </>
   );
 }

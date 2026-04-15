@@ -5,13 +5,16 @@ import NetWorthHero from "@/components/wealth/NetWorthHero";
 import MonthlyPulse from "@/components/wealth/MonthlyPulse";
 import GoalTension from "@/components/wealth/GoalTension";
 import FeatureCard from "@/components/ui/FeatureCard";
+import { Skeleton, useDelayedLoading } from "@/components/ui/Skeleton";
 import { useWealth } from "@/lib/wealth-context";
 import { formatMonth } from "@/lib/format";
 import { Sparkles, CalendarClock } from "lucide-react";
 import Link from "next/link";
 
 export default function WealthOverview() {
-  const { snapshot, goalTrajectories, alphaStatus, activePlan } = useWealth();
+  const { snapshot, goalTrajectories, alphaStatus, activePlan, isLoading } =
+    useWealth();
+  const showSkeleton = useDelayedLoading(isLoading);
   const { balanceSheet, cashFlow, netWorthHistory } = snapshot;
   const totalAssets = balanceSheet.assets.reduce((s, a) => s + a.value, 0);
   const illiquidPct =
@@ -22,6 +25,18 @@ export default function WealthOverview() {
     totalAssets > 0
       ? Math.round((balanceSheet.investedAssets / totalAssets) * 100)
       : 0;
+
+  if (showSkeleton) {
+    return (
+      <PageShell
+        eyebrow={`Wealth Overview · ${formatMonth(snapshot.period)}`}
+        title="Your wealth, at a glance."
+        subtitle="A single view of everything you own, owe, and earn — and what the next five years could look like if you stay the course."
+      >
+        <WealthOverviewSkeleton />
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell
@@ -119,5 +134,61 @@ export default function WealthOverview() {
         </div>
       </div>
     </PageShell>
+  );
+}
+
+/* ── Skeleton ─────────────────────────────────────────────────── */
+function WealthOverviewSkeleton() {
+  return (
+    <>
+      {/* Hero: net worth number + chart stage */}
+      <div className="grid grid-cols-12 items-end gap-x-12 gap-y-8">
+        <div className="col-span-12 lg:col-span-5 flex flex-col gap-4">
+          <Skeleton width={110} height={12} />
+          <Skeleton width="80%" height={76} rounded="rounded-lg" />
+          <Skeleton width={180} height={14} />
+        </div>
+        <div className="col-span-12 lg:col-span-7">
+          <Skeleton width="100%" height={220} rounded="rounded-2xl" />
+        </div>
+      </div>
+
+      {/* Where your month stands — 2 columns */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <div className="mb-10 flex flex-col gap-3">
+          <Skeleton width={90} height={12} />
+          <Skeleton width={360} height={36} />
+        </div>
+        <div className="grid grid-cols-12 gap-x-12 gap-y-16">
+          <div className="col-span-12 lg:col-span-6 flex flex-col gap-4">
+            <Skeleton width="100%" height={200} rounded="rounded-2xl" />
+            <Skeleton width="75%" height={14} />
+            <Skeleton width="60%" height={14} />
+          </div>
+          <div className="col-span-12 lg:col-span-6 flex flex-col gap-4">
+            <Skeleton width="100%" height={200} rounded="rounded-2xl" />
+            <Skeleton width="75%" height={14} />
+            <Skeleton width="60%" height={14} />
+          </div>
+        </div>
+      </div>
+
+      {/* Go deeper — 2 feature cards */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <div className="mb-10 flex flex-col gap-3">
+          <Skeleton width={120} height={12} />
+          <Skeleton width={280} height={36} />
+          <Skeleton width="55%" height={14} />
+        </div>
+        <div className="grid grid-cols-12 gap-6">
+          <div className="col-span-12 lg:col-span-6">
+            <Skeleton width="100%" height={160} rounded="rounded-2xl" />
+          </div>
+          <div className="col-span-12 lg:col-span-6">
+            <Skeleton width="100%" height={160} rounded="rounded-2xl" />
+          </div>
+        </div>
+      </div>
+    </>
   );
 }

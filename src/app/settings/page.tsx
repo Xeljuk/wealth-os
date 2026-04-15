@@ -4,6 +4,7 @@ import { useState, useEffect, FormEvent } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
 import { useToast } from "@/components/ui/Toast";
+import { Skeleton, useDelayedLoading } from "@/components/ui/Skeleton";
 import { Loader2, User, DollarSign, Sliders } from "lucide-react";
 
 type Stance = "safe" | "balanced" | "aggressive";
@@ -235,8 +236,8 @@ function PlanVariantEditor() {
   const toast = useToast();
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const showSkeleton = useDelayedLoading(loading);
   const [savingStance, setSavingStance] = useState<Stance | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/plans", { cache: "no-store" })
@@ -248,9 +249,11 @@ function PlanVariantEditor() {
         );
         setPlans(rows);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e) =>
+        toast.error(e instanceof Error ? e.message : String(e)),
+      )
       .finally(() => setLoading(false));
-  }, []);
+  }, [toast]);
 
   function update(stance: Stance, patch: Partial<PlanRow>) {
     setPlans((prev) =>
@@ -262,7 +265,6 @@ function PlanVariantEditor() {
     const plan = plans.find((p) => p.stance === stance);
     if (!plan) return;
     setSavingStance(stance);
-    setError(null);
     try {
       const res = await fetch("/api/plans", {
         method: "PATCH",
@@ -284,9 +286,7 @@ function PlanVariantEditor() {
       await refreshSnapshot();
       toast.success(`${STANCE_LABEL[stance]} variant saved`);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setError(msg);
-      toast.error(msg);
+      toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setSavingStance(null);
     }
@@ -330,25 +330,33 @@ function PlanVariantEditor() {
         </p>
       </div>
 
-      {loading && (
-        <p
-          className="text-[13px]"
-          style={{ color: "var(--color-text-muted)" }}
-        >
-          Loading plan variants…
-        </p>
+      {showSkeleton && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex flex-col gap-4 rounded-2xl p-6"
+              style={{ backgroundColor: "var(--color-surface)" }}
+            >
+              <Skeleton width={70} height={10} />
+              <Skeleton width="75%" height={22} />
+              {Array.from({ length: 4 }).map((_, j) => (
+                <div key={j} className="flex flex-col gap-1.5">
+                  <Skeleton width={90} height={9} />
+                  <Skeleton width="100%" height={34} rounded="rounded-lg" />
+                </div>
+              ))}
+              <Skeleton width="100%" height={60} rounded="rounded-lg" />
+              <Skeleton width="100%" height={40} rounded="rounded-lg" />
+            </div>
+          ))}
+        </div>
       )}
 
-      {error && (
-        <p
-          className="mb-4 text-[13px]"
-          style={{ color: "var(--color-negative)" }}
-        >
-          {error}
-        </p>
-      )}
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div
+        className="grid grid-cols-1 gap-6 lg:grid-cols-3"
+        style={{ display: showSkeleton ? "none" : undefined }}
+      >
         {plans.map((plan) => (
           <div
             key={plan.stance}

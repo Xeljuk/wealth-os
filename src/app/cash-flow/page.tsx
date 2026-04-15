@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
 import { useToast } from "@/components/ui/Toast";
+import { Skeleton, useDelayedLoading } from "@/components/ui/Skeleton";
 import { formatCurrency, formatMonth } from "@/lib/format";
 import type { IncomeSource, ExpenseItem } from "@/lib/types";
 import IncomeFormModal, { type IncomeFormValues } from "@/components/cash-flow/IncomeFormModal";
@@ -52,7 +53,8 @@ type ExpenseModalState =
 
 /* ── Page ──────────────────────────────────────────────────────── */
 export default function CashFlowEngine() {
-  const { snapshot, refreshSnapshot } = useWealth();
+  const { snapshot, refreshSnapshot, isLoading } = useWealth();
+  const showSkeleton = useDelayedLoading(isLoading);
   const toast = useToast();
   const rawCf = snapshot.cashFlow;
   const profile = snapshot.profile;
@@ -269,6 +271,18 @@ export default function CashFlowEngine() {
       text: `Your safety buffer of ${formatCurrency(cf.safetyBuffer)}/mo is protecting ${Math.round((cf.safetyBuffer / Math.max(cf.surplus, 1)) * 100)}% of your surplus. Click the buffer in the waterfall to tune it.`,
     },
   ];
+
+  if (showSkeleton) {
+    return (
+      <PageShell
+        eyebrow={`Cash Flow · ${formatMonth(snapshot.period)}`}
+        title="How your month operates."
+        subtitle={`Every lira ${profile.name} brings in, every commitment on its way out, and what remains to direct toward the things that matter.`}
+      >
+        <CashFlowSkeleton />
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell
@@ -741,5 +755,72 @@ function MiniStat({
         {value}
       </p>
     </div>
+  );
+}
+
+/* ── Skeleton ─────────────────────────────────────────────────── */
+function CashFlowSkeleton() {
+  return (
+    <>
+      {/* Hero: allocatable surplus + status */}
+      <div className="grid grid-cols-12 items-end gap-x-12 gap-y-6">
+        <div className="col-span-12 lg:col-span-7 flex flex-col gap-4">
+          <Skeleton width={110} height={12} />
+          <Skeleton width="65%" height={64} rounded="rounded-lg" />
+          <Skeleton width={220} height={14} />
+        </div>
+        <div className="col-span-12 lg:col-span-5 flex flex-col gap-3">
+          <Skeleton width="80%" height={14} />
+          <Skeleton width="60%" height={14} />
+        </div>
+      </div>
+
+      {/* Waterfall */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <div className="mb-8 flex flex-col gap-3">
+          <Skeleton width={90} height={12} />
+          <Skeleton width={320} height={36} />
+        </div>
+        <Skeleton width="100%" height={260} rounded="rounded-2xl" />
+      </div>
+
+      {/* Income list */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <div className="mb-8 flex flex-col gap-3">
+          <Skeleton width={140} height={12} />
+          <Skeleton width={320} height={36} />
+        </div>
+        <div className="flex flex-col gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between">
+              <div className="flex flex-col gap-2" style={{ width: "55%" }}>
+                <Skeleton width="70%" height={16} />
+                <Skeleton width="45%" height={12} />
+              </div>
+              <Skeleton width={100} height={18} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Expense list */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <div className="mb-8 flex flex-col gap-3">
+          <Skeleton width={160} height={12} />
+          <Skeleton width={280} height={36} />
+        </div>
+        <div className="flex flex-col gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between">
+              <div className="flex flex-col gap-2" style={{ width: "55%" }}>
+                <Skeleton width="65%" height={16} />
+                <Skeleton width="40%" height={12} />
+              </div>
+              <Skeleton width={100} height={18} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
   );
 }

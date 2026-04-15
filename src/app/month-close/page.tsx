@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
 import { useToast } from "@/components/ui/Toast";
+import { Skeleton, useDelayedLoading } from "@/components/ui/Skeleton";
 import { formatCurrency, formatMonth } from "@/lib/format";
 import { Loader2, CheckCircle2 } from "lucide-react";
 
@@ -21,17 +22,21 @@ interface HistoryRow {
 
 export default function MonthClosePage() {
   const router = useRouter();
-  const { snapshot, refreshSnapshot } = useWealth();
+  const { snapshot, refreshSnapshot, isLoading: wealthLoading } = useWealth();
   const toast = useToast();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryRow[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const showSkeleton = useDelayedLoading(wealthLoading || historyLoading);
 
   useEffect(() => {
+    setHistoryLoading(true);
     fetch("/api/snapshot/history", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => setHistory(data.rows ?? []))
-      .catch(() => setHistory([]));
+      .catch(() => setHistory([]))
+      .finally(() => setHistoryLoading(false));
   }, []);
 
   const { balanceSheet: bs, cashFlow: cf } = snapshot;
@@ -65,6 +70,18 @@ export default function MonthClosePage() {
       toast.error(msg);
       setSaving(false);
     }
+  }
+
+  if (showSkeleton) {
+    return (
+      <PageShell
+        eyebrow="Monthly ritual"
+        title={`Close ${formatMonth(snapshot.period)}.`}
+        subtitle="Lock in the numbers as they stand today. Future months compare against this snapshot — so you can see what actually moved."
+      >
+        <MonthCloseSkeleton />
+      </PageShell>
+    );
   }
 
   return (
@@ -183,5 +200,50 @@ function Stat({ label, value }: { label: string; value: string }) {
         {value}
       </p>
     </div>
+  );
+}
+
+/* ── Skeleton ─────────────────────────────────────────────────── */
+function MonthCloseSkeleton() {
+  return (
+    <>
+      {/* Stats grid */}
+      <div
+        className="rounded-2xl px-8 py-7"
+        style={{ backgroundColor: "var(--color-vellum-deep)" }}
+      >
+        <Skeleton width={150} height={12} />
+        <div className="mt-6 grid grid-cols-2 gap-x-8 gap-y-6 md:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex flex-col gap-2">
+              <Skeleton width={80} height={10} />
+              <Skeleton width={130} height={24} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* CTA row */}
+      <div className="section-breath-lg flex gap-3">
+        <Skeleton width={220} height={46} rounded="rounded-xl" />
+        <Skeleton width={180} height={46} rounded="rounded-xl" />
+      </div>
+
+      {/* Previous closes */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <Skeleton width={130} height={12} />
+        <div className="mt-6 flex flex-col gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between">
+              <div className="flex flex-col gap-2">
+                <Skeleton width={140} height={16} />
+                <Skeleton width={110} height={11} />
+              </div>
+              <Skeleton width={120} height={16} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
   );
 }

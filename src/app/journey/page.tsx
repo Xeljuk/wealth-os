@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
+import { Skeleton, useDelayedLoading } from "@/components/ui/Skeleton";
 import {
   formatCurrency,
   formatMonth,
@@ -420,7 +421,9 @@ function getDotMeta(kind: NodeKind): DotMeta {
 
 
 export default function JourneyPage() {
-  const { snapshot, goalTrajectories, activePlan, alphaStatus } = useWealth();
+  const { snapshot, goalTrajectories, activePlan, alphaStatus, isLoading } =
+    useWealth();
+  const showSkeleton = useDelayedLoading(isLoading);
   const { balanceSheet: bs, cashFlow: cf } = snapshot;
 
   const nodes = useMemo<JourneyNode[]>(() => {
@@ -717,6 +720,18 @@ export default function JourneyPage() {
   const gain = finalNetWorth - startNetWorth;
 
   const milestoneCount = nodes.filter((n) => n.kind === "milestone").length;
+
+  if (showSkeleton) {
+    return (
+      <PageShell
+        eyebrow={`Journey · ${formatMonth(snapshot.period)}`}
+        title="Your five-year walk."
+        subtitle="The path ahead, laid out one step at a time. Every node is a moment your plan carries you toward — a debt clearing, a goal reached, a checkpoint along the way."
+      >
+        <JourneySkeleton />
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell
@@ -1369,5 +1384,71 @@ function MiniStat({
         {value}
       </p>
     </div>
+  );
+}
+
+/* ── Skeleton ─────────────────────────────────────────────────── */
+function JourneySkeleton() {
+  return (
+    <>
+      {/* Stepper scene card */}
+      <div
+        className="rounded-3xl p-10"
+        style={{ backgroundColor: "var(--color-vellum-deep)" }}
+      >
+        <div className="flex items-start justify-between gap-6">
+          <div className="flex flex-col gap-3" style={{ width: "65%" }}>
+            <Skeleton width={110} height={10} />
+            <Skeleton width="70%" height={36} />
+            <Skeleton width="90%" height={16} />
+            <Skeleton width="80%" height={16} />
+          </div>
+          <Skeleton width={120} height={120} rounded="rounded-full" />
+        </div>
+
+        <div className="mt-10 grid grid-cols-3 gap-6">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex flex-col gap-2">
+              <Skeleton width={80} height={10} />
+              <Skeleton width={140} height={22} />
+            </div>
+          ))}
+        </div>
+
+        {/* prev/next context row */}
+        <div className="mt-10 flex items-center justify-between">
+          <Skeleton width={140} height={14} />
+          <Skeleton width={120} height={14} />
+          <Skeleton width={140} height={14} />
+        </div>
+      </div>
+
+      {/* Minimap strip */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <div className="mb-8 flex flex-col gap-3">
+          <Skeleton width={80} height={12} />
+          <Skeleton width={280} height={28} />
+        </div>
+        <Skeleton width="100%" height={64} rounded="rounded-xl" />
+      </div>
+
+      {/* Zones summary */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex flex-col gap-3 rounded-2xl p-6"
+              style={{ backgroundColor: "var(--color-vellum-deep)" }}
+            >
+              <Skeleton width={80} height={10} />
+              <Skeleton width="80%" height={22} />
+              <Skeleton width="100%" height={12} />
+              <Skeleton width="70%" height={12} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
   );
 }

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
 import { useToast } from "@/components/ui/Toast";
+import { Skeleton, useDelayedLoading } from "@/components/ui/Skeleton";
 import { formatCurrency, formatMonth, formatMonthWithOffset } from "@/lib/format";
 import type { Goal, GoalStatus, PlanStance } from "@/lib/types";
 import GoalFormModal, { type GoalFormValues } from "@/components/goals/GoalFormModal";
@@ -73,7 +74,9 @@ export default function GoalEngine() {
     overcommitRatio,
     alphaStatus,
     refreshSnapshot,
+    isLoading,
   } = useWealth();
+  const showSkeleton = useDelayedLoading(isLoading);
 
   const toast = useToast();
   const [modal, setModal] = useState<ModalState>({ kind: "closed" });
@@ -179,6 +182,20 @@ export default function GoalEngine() {
       <Plus size={14} /> Add Goal
     </button>
   );
+
+  // ── Skeleton state ───────────────────────────────────────────
+  if (showSkeleton) {
+    return (
+      <PageShell
+        eyebrow={`Goal Program · ${formatMonth(snapshot.period)}`}
+        title="Your missions, in motion."
+        subtitle="Your priorities, your numbers, and what they say about the path forward under the current operating stance."
+        headerAction={addGoalButton}
+      >
+        <GoalsSkeleton />
+      </PageShell>
+    );
+  }
 
   // ── Empty state ──────────────────────────────────────────────
   if (goals.length === 0) {
@@ -905,5 +922,95 @@ function MiniStat({
         {value}
       </p>
     </div>
+  );
+}
+
+/* ── Skeleton ─────────────────────────────────────────────────── */
+function GoalsSkeleton() {
+  return (
+    <>
+      {/* Hero numeric + progress */}
+      <div className="grid grid-cols-12 items-end gap-x-12 gap-y-6">
+        <div className="col-span-12 lg:col-span-7 flex flex-col gap-4">
+          <Skeleton width={110} height={12} />
+          <Skeleton width="70%" height={64} rounded="rounded-lg" />
+          <Skeleton width={220} height={14} />
+        </div>
+        <div className="col-span-12 lg:col-span-5">
+          <Skeleton width="100%" height={44} rounded="rounded-full" />
+        </div>
+      </div>
+
+      {/* Featured primary mission card */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <div className="mb-8 flex flex-col gap-3">
+          <Skeleton width={110} height={12} />
+          <Skeleton width={320} height={36} />
+        </div>
+        <div className="flex flex-col gap-5">
+          <Skeleton width="55%" height={22} />
+          <div className="grid grid-cols-12 gap-x-12 gap-y-4">
+            <div className="col-span-12 lg:col-span-4 flex flex-col gap-2">
+              <Skeleton width={80} height={10} />
+              <Skeleton width={140} height={22} />
+            </div>
+            <div className="col-span-12 lg:col-span-4 flex flex-col gap-2">
+              <Skeleton width={80} height={10} />
+              <Skeleton width={140} height={22} />
+            </div>
+            <div className="col-span-12 lg:col-span-4 flex flex-col gap-2">
+              <Skeleton width={80} height={10} />
+              <Skeleton width={140} height={22} />
+            </div>
+          </div>
+          <Skeleton width="100%" height={10} rounded="rounded-full" />
+        </div>
+      </div>
+
+      {/* Supporting goals list */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <div className="mb-8 flex flex-col gap-3">
+          <Skeleton width={140} height={12} />
+          <Skeleton width={280} height={36} />
+        </div>
+        <div className="flex flex-col gap-6">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <Skeleton width="40%" height={20} />
+                <Skeleton width={70} height={22} rounded="rounded-full" />
+              </div>
+              <Skeleton width="100%" height={8} rounded="rounded-full" />
+              <div className="flex gap-4">
+                <Skeleton width={100} height={12} />
+                <Skeleton width={100} height={12} />
+                <Skeleton width={100} height={12} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Funding comparison + timeline table */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <div className="mb-8 flex flex-col gap-3">
+          <Skeleton width={140} height={12} />
+          <Skeleton width={340} height={36} />
+        </div>
+        <div className="grid grid-cols-12 gap-x-12 gap-y-6">
+          <div className="col-span-12 lg:col-span-6 flex flex-col gap-4">
+            <Skeleton width="100%" height={160} rounded="rounded-2xl" />
+          </div>
+          <div className="col-span-12 lg:col-span-6 flex flex-col gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex justify-between">
+                <Skeleton width="45%" height={14} />
+                <Skeleton width="30%" height={14} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
   );
 }

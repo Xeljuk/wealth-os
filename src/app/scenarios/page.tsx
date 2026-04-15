@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
 import { useToast } from "@/components/ui/Toast";
+import { Skeleton, useDelayedLoading } from "@/components/ui/Skeleton";
 import { formatCurrency, formatMonth } from "@/lib/format";
 import type { PlanStance, PlanVariant, Scenario } from "@/lib/types";
 import ScenarioFormModal, {
@@ -194,12 +195,13 @@ export default function ScenarioSimulator() {
     setStance: setActive,
     refreshSnapshot,
     alphaStatus,
+    isLoading,
   } = useWealth();
+  const showSkeleton = useDelayedLoading(isLoading);
   const toast = useToast();
   const { plans, scenarios: rawScenarios, cashFlow: cf } = snapshot;
 
   const [modal, setModal] = useState<ScenarioModalState>({ kind: "closed" });
-  const [actionError, setActionError] = useState<string | null>(null);
   const [pendingScenarioIds, setPendingScenarioIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -209,7 +211,6 @@ export default function ScenarioSimulator() {
   );
 
   async function handleCreate(values: ScenarioFormValues) {
-    setActionError(null);
     const res = await fetch("/api/scenarios", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -225,7 +226,6 @@ export default function ScenarioSimulator() {
   }
 
   async function handleUpdate(id: string, values: ScenarioFormValues) {
-    setActionError(null);
     const res = await fetch(`/api/scenarios/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -241,7 +241,6 @@ export default function ScenarioSimulator() {
   }
 
   function handleDelete(sc: Scenario) {
-    setActionError(null);
     setPendingScenarioIds((prev) => new Set(prev).add(sc.id));
     toast.undo({
       message: `Scenario "${sc.name}" deleted`,
@@ -328,6 +327,18 @@ export default function ScenarioSimulator() {
   ]
     .filter(Boolean)
     .join(", ");
+
+  if (showSkeleton) {
+    return (
+      <PageShell
+        eyebrow={`Decision Lab · ${formatMonth(snapshot.period)}`}
+        title="Preview every path before you commit."
+        subtitle="Each stance shifts your monthly room between goals, debt, and reserves. Each what-if runs the trade-off against your real numbers — so you see what changes, not just what you hope."
+      >
+        <ScenariosSkeleton />
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell
@@ -597,17 +608,6 @@ export default function ScenarioSimulator() {
           </button>
         </div>
 
-        {actionError && (
-          <div
-            className="mb-6 rounded-2xl px-5 py-4"
-            style={{ backgroundColor: "var(--color-negative-light)" }}
-          >
-            <p className="text-sm" style={{ color: "var(--color-negative)" }}>
-              {actionError}
-            </p>
-          </div>
-        )}
-
         {scenarios.length === 0 ? (
           <p
             className="body-editorial"
@@ -875,5 +875,62 @@ export default function ScenarioSimulator() {
         />
       )}
     </PageShell>
+  );
+}
+
+/* ── Skeleton ─────────────────────────────────────────────────── */
+function ScenariosSkeleton() {
+  return (
+    <>
+      {/* 3 stance cards */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex flex-col gap-4 rounded-2xl p-6"
+            style={{ backgroundColor: "var(--color-vellum-deep)" }}
+          >
+            <Skeleton width={70} height={10} />
+            <Skeleton width="75%" height={24} />
+            <div className="grid grid-cols-2 gap-3">
+              {Array.from({ length: 4 }).map((_, j) => (
+                <div key={j} className="flex flex-col gap-1.5">
+                  <Skeleton width="70%" height={9} />
+                  <Skeleton width="55%" height={14} />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Active stance narrative */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <div className="mb-8 flex flex-col gap-3">
+          <Skeleton width={100} height={12} />
+          <Skeleton width={360} height={36} />
+        </div>
+        <Skeleton width="100%" height={220} rounded="rounded-2xl" />
+      </div>
+
+      {/* What-if scenarios list */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <div className="mb-8 flex flex-col gap-3">
+          <Skeleton width={120} height={12} />
+          <Skeleton width={280} height={36} />
+        </div>
+        <div className="flex flex-col gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between">
+              <div className="flex flex-col gap-2" style={{ width: "60%" }}>
+                <Skeleton width="70%" height={16} />
+                <Skeleton width="90%" height={12} />
+              </div>
+              <Skeleton width={120} height={32} rounded="rounded-lg" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
   );
 }

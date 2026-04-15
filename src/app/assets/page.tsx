@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
 import { useToast } from "@/components/ui/Toast";
+import { Skeleton, useDelayedLoading } from "@/components/ui/Skeleton";
 import { formatCurrency, formatMonth } from "@/lib/format";
 import type {
   Asset,
@@ -134,7 +135,8 @@ type LiabilityModalState =
 
 /* ── Page ──────────────────────────────────────────────────────── */
 export default function AssetBoard() {
-  const { snapshot, refreshSnapshot } = useWealth();
+  const { snapshot, refreshSnapshot, isLoading } = useWealth();
+  const showSkeleton = useDelayedLoading(isLoading);
   const toast = useToast();
   const { balanceSheet: rawBs, cashFlow: cf } = snapshot;
 
@@ -358,6 +360,19 @@ export default function AssetBoard() {
       <Plus size={14} /> Add asset
     </button>
   );
+
+  if (showSkeleton) {
+    return (
+      <PageShell
+        eyebrow={`Balance Sheet · ${formatMonth(snapshot.period)}`}
+        title="The architecture of what you own."
+        subtitle="What you hold, what you owe, and the structure that shapes how resilient, liquid, and productive your wealth actually is."
+        headerAction={addAssetButton}
+      >
+        <AssetsSkeleton />
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell
@@ -1033,5 +1048,75 @@ function LayerRow({
         />
       </div>
     </div>
+  );
+}
+
+/* ── Skeleton ─────────────────────────────────────────────────── */
+function AssetsSkeleton() {
+  return (
+    <>
+      {/* Hero total */}
+      <div className="flex flex-col gap-4">
+        <Skeleton width={110} height={12} />
+        <Skeleton width="55%" height={64} rounded="rounded-lg" />
+        <Skeleton width={240} height={14} />
+      </div>
+
+      {/* Composition bar */}
+      <div className="mt-12">
+        <Skeleton width="100%" height={28} rounded="rounded-full" />
+        <div className="mt-4 flex gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex flex-col gap-1">
+              <Skeleton width={70} height={10} />
+              <Skeleton width={60} height={14} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Asset inventory */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <div className="mb-8 flex flex-col gap-3">
+          <Skeleton width={100} height={12} />
+          <Skeleton width={320} height={36} />
+        </div>
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex flex-col gap-3 rounded-2xl p-6"
+              style={{ backgroundColor: "var(--color-vellum-deep)" }}
+            >
+              <div className="flex items-center justify-between">
+                <Skeleton width="55%" height={18} />
+                <Skeleton width={60} height={14} rounded="rounded-full" />
+              </div>
+              <Skeleton width="70%" height={28} />
+              <Skeleton width="40%" height={12} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Liabilities list */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <div className="mb-8 flex flex-col gap-3">
+          <Skeleton width={110} height={12} />
+          <Skeleton width={300} height={36} />
+        </div>
+        <div className="flex flex-col gap-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between">
+              <div className="flex flex-col gap-2" style={{ width: "55%" }}>
+                <Skeleton width="70%" height={16} />
+                <Skeleton width="45%" height={12} />
+              </div>
+              <Skeleton width={110} height={18} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
   );
 }

@@ -200,6 +200,43 @@ body {
   }
 }
 
+/* ── Skeleton shimmer ────────────────────────────────────────────
+   Single-direction (left → right) sweep. Base colour is the vellum
+   panel tone so skeletons blend with the surface; the sweep layer
+   adds a translucent warm highlight that slides across. */
+
+@keyframes skeleton-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton-base {
+  background-color: var(--color-surface-low);
+}
+
+.skeleton-sweep {
+  background: linear-gradient(
+    90deg,
+    rgba(250, 248, 244, 0) 0%,
+    rgba(250, 248, 244, 0.55) 50%,
+    rgba(250, 248, 244, 0) 100%
+  );
+  transform: translateX(-100%);
+  animation: skeleton-sweep 1.6s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-sweep {
+    animation: none;
+    opacity: 0.4;
+  }
+}
+
 /* ── Vertical rhythm helpers ─────────────────────────────────── */
 
 /* Use on a section to breathe — 96px top/bottom */
