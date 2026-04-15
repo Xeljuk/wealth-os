@@ -9,7 +9,6 @@ import {
   formatMonthWithOffset,
 } from "@/lib/format";
 import {
-  Flag,
   Trophy,
   Flame,
   Target,
@@ -21,6 +20,10 @@ import {
   Circle,
   ArrowRight,
   MapPin,
+  PiggyBank,
+  LineChart,
+  Scale,
+  CalendarClock,
 } from "lucide-react";
 import Link from "next/link";
 import type { ComponentType } from "react";
@@ -36,19 +39,26 @@ const GOAL_TYPE_ICONS: Record<string, ComponentType<{ size?: number }>> = {
   custom: Target,
 };
 
-type NodeKind = "start" | "milestone" | "checkpoint" | "final";
+type NodeKind =
+  | "start"
+  | "milestone"
+  | "checkpoint"
+  | "recommendation"
+  | "advisory"
+  | "final";
 
 interface JourneyNode {
   id: string;
   month: number;
   label: string;
   sublabel: string;
+  dateLabel: string; // "Month 4 · Aug 2026" style
   icon: ComponentType<{ size?: number }>;
   kind: NodeKind;
   netWorth: number;
   stepNumber: number;
-  // For events — which category tinted the node
   accent: string;
+  badge?: string; // "Recommended" / "Advisory" pill
 }
 
 const HORIZON = 60;
@@ -122,72 +132,185 @@ export default function JourneyPage() {
       netWorthAt.push(otherAssets + investments - debt);
     }
 
-    // Assemble unique month set: start + end + events + yearly checkpoints
-    const monthSet = new Set<number>([0, HORIZON]);
-    events.forEach((e) => monthSet.add(e.month));
-    for (let y = 12; y < HORIZON; y += 12) monthSet.add(y);
+    // ── Recommendations (heuristics on current snapshot) ──────
+    const recommendations: {
+      month: number;
+      label: string;
+      sublabel: string;
+      icon: ComponentType<{ size?: number }>;
+    }[] = [];
 
-    const sorted = [...monthSet].sort((a, b) => a - b);
+    const monthlyObligations =
+      cf.totalFixed + cf.totalVariable + cf.totalDebtService;
+    const coverageMonths =
+      monthlyObligations > 0 ? bs.liquidAssets / monthlyObligations : 99;
+    const totalAssets = bs.assets.reduce((s, a) => s + a.value, 0);
+    const productivePct =
+      totalAssets > 0 ? (bs.investedAssets / totalAssets) * 100 : 0;
+    const debtRatio =
+      cf.totalInflow > 0
+        ? (cf.totalDebtService / cf.totalInflow) * 100
+        : 0;
+    const hasEmergencyGoal = goalTrajectories.some(
+      (g) => g.type === "emergency_fund",
+    );
+    const hasGrowthGoal = goalTrajectories.some(
+      (g) => g.type === "portfolio_growth",
+    );
+    const hasDebtGoal = goalTrajectories.some(
+      (g) => g.type === "debt_reduction",
+    );
 
-    return sorted.map((month, idx): JourneyNode => {
-      const event = events.find((e) => e.month === month);
-      if (month === 0) {
-        return {
-          id: "start",
-          month,
-          label: "You are here",
-          sublabel: formatMonth(snapshot.period),
-          icon: MapPin,
-          kind: "start",
-          netWorth: netWorthAt[0]!,
-          stepNumber: idx + 1,
-          accent: "var(--color-ink)",
-        };
-      }
-      if (month === HORIZON) {
-        return {
-          id: "final",
-          month,
-          label: "Five years ahead",
-          sublabel: "Destination",
-          icon: Trophy,
-          kind: "final",
-          netWorth: netWorthAt[HORIZON]!,
-          stepNumber: idx + 1,
+    if (coverageMonths < 3 && !hasEmergencyGoal) {
+      recommendations.push({
+        month: 6,
+        label: "Start an emergency fund",
+        sublabel: `Liquid reserves cover only ${coverageMonths.toFixed(1)} months. Aim for 3.`,
+        icon: PiggyBank,
+      });
+    }
+    if (productivePct < 20 && !hasGrowthGoal) {
+      recommendations.push({
+        month: 12,
+        label: "Grow productive capital",
+        sublabel: `Only ${Math.round(productivePct)}% of wealth is invested — add a growth goal.`,
+        icon: LineChart,
+      });
+    }
+    if (debtRatio > 15 && !hasDebtGoal) {
+      recommendations.push({
+        month: 3,
+        label: "Debt avalanche",
+        sublabel: `Debt service is ${debtRatio.toFixed(1)}% of inflow — prioritise payoff.`,
+        icon: Scale,
+      });
+    }
+
+    // ── Advisory external event ───────────────────────────────
+    // Placed mid-journey as a neutral "take stock" moment
+    const advisoryEvents: {
+      month: number;
+      label: string;
+      sublabel: string;
+      icon: ComponentType<{ size?: number }>;
+    }[] = [
+      {
+        month: 24,
+        label: "Mid-journey review",
+        sublabel:
+          "Reassess your stance: has your income, life, or appetite for risk shifted?",
+        icon: CalendarClock,
+      },
+    ];
+
+    // ── Assemble unique month → node list ─────────────────────
+    // Preferred kind per month: start/final > milestone > recommendation > advisory > checkpoint
+    type PreNode = {
+      month: number;
+      kind: NodeKind;
+      label: string;
+      sublabel: string;
+      icon: ComponentType<{ size?: number }>;
+      accent: string;
+      badge?: string;
+    };
+    const preNodes = new Map<number, PreNode>();
+
+    preNodes.set(0, {
+      month: 0,
+      kind: "start",
+      label: "You are here",
+      sublabel: "The starting point",
+      icon: MapPin,
+      accent: "var(--color-ink)",
+    });
+    preNodes.set(HORIZON, {
+      month: HORIZON,
+      kind: "final",
+      label: "Five years ahead",
+      sublabel: "Destination",
+      icon: Trophy,
+      accent: "var(--color-accent)",
+    });
+
+    for (const e of events) {
+      preNodes.set(e.month, {
+        month: e.month,
+        kind: "milestone",
+        label: e.label,
+        sublabel: e.sublabel,
+        icon: e.icon,
+        accent: e.accent,
+      });
+    }
+    for (const r of recommendations) {
+      if (!preNodes.has(r.month)) {
+        preNodes.set(r.month, {
+          month: r.month,
+          kind: "recommendation",
+          label: r.label,
+          sublabel: r.sublabel,
+          icon: r.icon,
           accent: "var(--color-accent)",
-        };
+          badge: "Recommended",
+        });
       }
-      if (event) {
-        return {
-          id: `event-${month}`,
-          month,
-          label: event.label,
-          sublabel: event.sublabel,
-          icon: event.icon,
-          kind: "milestone",
-          netWorth: netWorthAt[month]!,
-          stepNumber: idx + 1,
-          accent: event.accent,
-        };
+    }
+    for (const a of advisoryEvents) {
+      if (!preNodes.has(a.month)) {
+        preNodes.set(a.month, {
+          month: a.month,
+          kind: "advisory",
+          label: a.label,
+          sublabel: a.sublabel,
+          icon: a.icon,
+          accent: "var(--color-text-secondary)",
+          badge: "Advisory",
+        });
       }
+    }
+    // Yearly checkpoints — only if that month isn't already claimed
+    for (let y = 12; y < HORIZON; y += 12) {
+      if (!preNodes.has(y)) {
+        preNodes.set(y, {
+          month: y,
+          kind: "checkpoint",
+          label: `${y / 12} year${y / 12 > 1 ? "s" : ""} in`,
+          sublabel: "Checkpoint",
+          icon: Circle,
+          accent: "var(--color-text-muted)",
+        });
+      }
+    }
+
+    const sorted = [...preNodes.values()].sort((a, b) => a.month - b.month);
+
+    return sorted.map((pre, idx): JourneyNode => {
+      const dateLabel =
+        pre.month === 0
+          ? `Month 0 · ${formatMonth(snapshot.period)}`
+          : `Month ${pre.month} · ${formatMonthWithOffset(snapshot.period, pre.month)}`;
+
       return {
-        id: `checkpoint-${month}`,
-        month,
-        label: `${month / 12} year${month / 12 > 1 ? "s" : ""} in`,
-        sublabel: "Checkpoint",
-        icon: Circle,
-        kind: "checkpoint",
-        netWorth: netWorthAt[month]!,
+        id: `${pre.kind}-${pre.month}`,
+        month: pre.month,
+        label: pre.label,
+        sublabel: pre.sublabel,
+        dateLabel,
+        icon: pre.icon,
+        kind: pre.kind,
+        netWorth: netWorthAt[pre.month]!,
         stepNumber: idx + 1,
-        accent: "var(--color-text-muted)",
+        accent: pre.accent,
+        badge: pre.badge,
       };
     });
   }, [snapshot, bs, cf, goalTrajectories, activePlan]);
 
   // ── Path geometry ───────────────────────────────────────────
-  const NODE_SPACING = 200; // px between nodes vertically
-  const TOP_PAD = 60;
-  const BOTTOM_PAD = 100;
+  const NODE_SPACING = 230; // px between nodes vertically (extra room for dates + badges)
+  const TOP_PAD = 80;
+  const BOTTOM_PAD = 120;
   const containerHeight =
     TOP_PAD + (nodes.length - 1) * NODE_SPACING + BOTTOM_PAD;
 
@@ -450,12 +573,31 @@ export default function JourneyPage() {
                   </span>
                 </div>
                 <div className="col-span-5">
-                  <p
-                    className="text-[15px] font-semibold"
-                    style={{ color: "var(--color-text-primary)" }}
-                  >
-                    {node.label}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p
+                      className="text-[15px] font-semibold"
+                      style={{ color: "var(--color-text-primary)" }}
+                    >
+                      {node.label}
+                    </p>
+                    {node.badge && (
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em]"
+                        style={{
+                          backgroundColor:
+                            node.kind === "recommendation"
+                              ? "var(--color-accent-light)"
+                              : "var(--color-surface-low)",
+                          color:
+                            node.kind === "recommendation"
+                              ? "var(--color-accent)"
+                              : "var(--color-text-secondary)",
+                        }}
+                      >
+                        {node.badge}
+                      </span>
+                    )}
+                  </div>
                   <p
                     className="mt-0.5 text-[12px]"
                     style={{ color: "var(--color-text-muted)" }}
@@ -500,24 +642,40 @@ function NodeCard({ node }: { node: JourneyNode }) {
   const isFinal = node.kind === "final";
   const isMilestone = node.kind === "milestone";
   const isCheckpoint = node.kind === "checkpoint";
+  const isRecommendation = node.kind === "recommendation";
+  const isAdvisory = node.kind === "advisory";
 
   // Sizing
-  const circleSize = isStart || isFinal ? 128 : isMilestone ? 104 : 76;
-  const iconSize = isStart || isFinal ? 32 : isMilestone ? 24 : 18;
+  const circleSize =
+    isStart || isFinal
+      ? 128
+      : isMilestone
+        ? 104
+        : isRecommendation || isAdvisory
+          ? 84
+          : 76;
+  const iconSize =
+    isStart || isFinal ? 32 : isMilestone ? 24 : isRecommendation || isAdvisory ? 20 : 18;
   const haloSize = circleSize + 32;
 
-  const circleBg = isCheckpoint ? "var(--color-surface)" : node.accent;
-  const iconColor = isCheckpoint ? node.accent : "#ffffff";
+  // Solid vs outlined presentation
+  const isFilled = isStart || isFinal || isMilestone;
+  const circleBg = isFilled ? node.accent : "var(--color-surface)";
+  const iconColor = isFilled ? "#ffffff" : node.accent;
   const borderStyle = isCheckpoint
     ? `2px dashed ${node.accent}`
-    : "none";
+    : isRecommendation
+      ? `2px dashed var(--color-accent)`
+      : isAdvisory
+        ? `2px dotted var(--color-text-secondary)`
+        : "none";
 
   return (
     <div
       className="flex flex-col items-center gap-3"
       style={{ transform: "translateX(-50%)" }}
     >
-      {/* "You are here" tag only on start */}
+      {/* Top flag — "You are here" for start, badges for others */}
       {isStart && (
         <div
           className="mb-1 flex items-center gap-1.5 rounded-full px-3 py-1"
@@ -535,13 +693,29 @@ function NodeCard({ node }: { node: JourneyNode }) {
           </span>
         </div>
       )}
+      {node.badge && !isStart && (
+        <div
+          className="mb-1 rounded-full px-2.5 py-0.5"
+          style={{
+            backgroundColor: isRecommendation
+              ? "var(--color-accent-light)"
+              : "var(--color-surface-low)",
+            color: isRecommendation
+              ? "var(--color-accent)"
+              : "var(--color-text-secondary)",
+          }}
+        >
+          <span className="text-[9px] font-bold uppercase tracking-[0.14em]">
+            {node.badge}
+          </span>
+        </div>
+      )}
 
       {/* Circle node */}
       <div className="relative flex items-center justify-center">
-        {/* Outer halo */}
         {(isStart || isFinal || isMilestone) && (
           <div
-            className="absolute rounded-full journey-pulse"
+            className="journey-pulse absolute rounded-full"
             style={{
               width: `${haloSize}px`,
               height: `${haloSize}px`,
@@ -550,7 +724,6 @@ function NodeCard({ node }: { node: JourneyNode }) {
             }}
           />
         )}
-        {/* Main circle */}
         <div
           className="relative flex items-center justify-center rounded-full"
           style={{
@@ -569,7 +742,7 @@ function NodeCard({ node }: { node: JourneyNode }) {
         >
           <Icon size={iconSize} />
         </div>
-        {/* Step number badge */}
+        {/* Step badge */}
         <div
           className="absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold tabular-nums"
           style={{
@@ -585,27 +758,35 @@ function NodeCard({ node }: { node: JourneyNode }) {
 
       {/* Label block */}
       <div
-        className="flex w-[200px] flex-col items-center text-center"
+        className="flex w-[210px] flex-col items-center text-center"
         style={{ marginTop: "4px" }}
       >
+        {/* Date line — always visible */}
         <p
-          className="text-[14px] font-bold leading-tight"
+          className="text-[9px] font-bold uppercase tracking-[0.12em]"
+          style={{ color: "var(--color-text-muted)" }}
+        >
+          {node.dateLabel}
+        </p>
+        <p
+          className="mt-1.5 text-[14px] font-bold leading-tight"
           style={{
-            color: isCheckpoint
-              ? "var(--color-text-muted)"
-              : "var(--color-text-primary)",
+            color:
+              isCheckpoint || isAdvisory
+                ? "var(--color-text-secondary)"
+                : "var(--color-text-primary)",
             letterSpacing: "-0.015em",
           }}
         >
           {node.label}
         </p>
         <p
-          className="mt-0.5 text-[10px]"
+          className="mt-1 text-[10px] leading-snug"
           style={{ color: "var(--color-text-muted)" }}
         >
           {node.sublabel}
         </p>
-        {!isCheckpoint && (
+        {!isCheckpoint && !isAdvisory && !isRecommendation && (
           <div
             className="mt-2 rounded-md px-2.5 py-1"
             style={{
