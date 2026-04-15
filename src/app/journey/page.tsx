@@ -3,20 +3,31 @@
 import { useMemo } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
-import { formatCurrency, formatMonth, formatMonthWithOffset } from "@/lib/format";
 import {
-  TrendingUp,
+  formatCurrency,
+  formatMonth,
+  formatMonthWithOffset,
+} from "@/lib/format";
+import {
+  Flag,
+  Trophy,
+  Flame,
+  Target,
   Shield,
   Home,
   Wallet,
-  Target,
+  TrendingUp,
   Star,
+  Circle,
   ArrowRight,
-  Flag,
+  MapPin,
 } from "lucide-react";
 import Link from "next/link";
+import type { ComponentType } from "react";
 
-const GOAL_TYPE_ICONS: Record<string, typeof TrendingUp> = {
+/* ── Config ───────────────────────────────────────────────────── */
+
+const GOAL_TYPE_ICONS: Record<string, ComponentType<{ size?: number }>> = {
   emergency_fund: Shield,
   down_payment: Home,
   car_purchase: Wallet,
@@ -25,28 +36,30 @@ const GOAL_TYPE_ICONS: Record<string, typeof TrendingUp> = {
   custom: Target,
 };
 
-interface MilestoneEvent {
+type NodeKind = "start" | "milestone" | "checkpoint" | "final";
+
+interface JourneyNode {
+  id: string;
   month: number;
   label: string;
-  date: string;
-  value: number;
-  type: "debt" | "goal";
-  icon: typeof TrendingUp;
-  description: string;
+  sublabel: string;
+  icon: ComponentType<{ size?: number }>;
+  kind: NodeKind;
+  netWorth: number;
+  stepNumber: number;
+  // For events — which category tinted the node
+  accent: string;
 }
 
-interface MonthPoint {
-  month: number;
-  netWorth: number;
-}
+const HORIZON = 60;
+
+/* ── Page ─────────────────────────────────────────────────────── */
 
 export default function JourneyPage() {
   const { snapshot, goalTrajectories, activePlan, alphaStatus } = useWealth();
   const { balanceSheet: bs, cashFlow: cf } = snapshot;
 
-  const HORIZON = 60;
-
-  const { curve, milestones, firstMilestone, finalNetWorth } = useMemo(() => {
+  const nodes = useMemo<JourneyNode[]>(() => {
     const monthlyReturn = 0.06 / 12;
 
     let debt = bs.totalLiabilities;
@@ -63,104 +76,155 @@ export default function JourneyPage() {
     const otherAssets =
       bs.assets.reduce((s, a) => s + a.value, 0) - bs.investedAssets;
 
-    const curvePoints: MonthPoint[] = [];
-    const events: MilestoneEvent[] = [];
-    let firstNext: MilestoneEvent | null = null;
+    const netWorthAt: number[] = [bs.netWorth];
+    const events: {
+      month: number;
+      label: string;
+      sublabel: string;
+      icon: ComponentType<{ size?: number }>;
+      accent: string;
+    }[] = [];
 
-    for (let m = 0; m <= HORIZON; m++) {
-      if (m > 0) {
-        investments =
-          investments * (1 + monthlyReturn) +
-          (activePlan?.investmentContribution ?? 0);
+    for (let m = 1; m <= HORIZON; m++) {
+      investments =
+        investments * (1 + monthlyReturn) +
+        (activePlan?.investmentContribution ?? 0);
 
-        if (!debtCleared) {
-          debt = Math.max(0, debt - debtPayment);
-          if (debt === 0) {
-            debtCleared = true;
-            const ev: MilestoneEvent = {
-              month: m,
-              label: "Debt cleared",
-              date: formatMonthWithOffset(snapshot.period, m),
-              value: otherAssets + investments,
-              type: "debt",
-              icon: Star,
-              description:
-                "All liabilities paid off — freed capacity flows to goals.",
-            };
-            events.push(ev);
-            if (!firstNext) firstNext = ev;
-          }
-        }
-
-        for (const g of goalState) {
-          if (g.completed) continue;
-          g.current = Math.min(g.current + g.allocation, g.targetAmount);
-          if (g.current >= g.targetAmount) {
-            g.completed = true;
-            const ev: MilestoneEvent = {
-              month: m,
-              label: g.name,
-              date: formatMonthWithOffset(snapshot.period, m),
-              value: g.targetAmount,
-              type: "goal",
-              icon: GOAL_TYPE_ICONS[g.type] ?? Target,
-              description: `${g.name} target reached — ${formatCurrency(
-                g.targetAmount,
-                { compact: true },
-              )} secured.`,
-            };
-            events.push(ev);
-            if (!firstNext) firstNext = ev;
-          }
+      if (!debtCleared) {
+        debt = Math.max(0, debt - debtPayment);
+        if (debt === 0) {
+          debtCleared = true;
+          events.push({
+            month: m,
+            label: "Debt cleared",
+            sublabel: "A weight lifted — freed capacity flows to goals",
+            icon: Flame,
+            accent: "var(--color-warning)",
+          });
         }
       }
-      curvePoints.push({ month: m, netWorth: otherAssets + investments });
+
+      for (const g of goalState) {
+        if (g.completed) continue;
+        g.current = Math.min(g.current + g.allocation, g.targetAmount);
+        if (g.current >= g.targetAmount) {
+          g.completed = true;
+          events.push({
+            month: m,
+            label: g.name,
+            sublabel: `Goal reached — ${formatCurrency(g.targetAmount, { compact: true })} secured`,
+            icon: GOAL_TYPE_ICONS[g.type] ?? Target,
+            accent: "var(--color-accent)",
+          });
+        }
+      }
+
+      netWorthAt.push(otherAssets + investments - debt);
     }
 
-    return {
-      curve: curvePoints,
-      milestones: events,
-      firstMilestone: firstNext,
-      finalNetWorth: curvePoints[curvePoints.length - 1]!.netWorth,
-    };
-  }, [snapshot.period, bs, cf, goalTrajectories, activePlan]);
+    // Assemble unique month set: start + end + events + yearly checkpoints
+    const monthSet = new Set<number>([0, HORIZON]);
+    events.forEach((e) => monthSet.add(e.month));
+    for (let y = 12; y < HORIZON; y += 12) monthSet.add(y);
 
-  const minY = Math.min(...curve.map((c) => c.netWorth));
-  const maxY = Math.max(...curve.map((c) => c.netWorth));
+    const sorted = [...monthSet].sort((a, b) => a - b);
 
-  // SVG geometry
-  const VB_W = 920;
-  const VB_H = 320;
-  const PAD_T = 40;
-  const PAD_R = 80;
-  const PAD_B = 48;
-  const PAD_L = 40;
-  const PLOT_W = VB_W - PAD_L - PAD_R;
-  const PLOT_H = VB_H - PAD_T - PAD_B;
+    return sorted.map((month, idx): JourneyNode => {
+      const event = events.find((e) => e.month === month);
+      if (month === 0) {
+        return {
+          id: "start",
+          month,
+          label: "You are here",
+          sublabel: formatMonth(snapshot.period),
+          icon: MapPin,
+          kind: "start",
+          netWorth: netWorthAt[0]!,
+          stepNumber: idx + 1,
+          accent: "var(--color-ink)",
+        };
+      }
+      if (month === HORIZON) {
+        return {
+          id: "final",
+          month,
+          label: "Five years ahead",
+          sublabel: "Destination",
+          icon: Trophy,
+          kind: "final",
+          netWorth: netWorthAt[HORIZON]!,
+          stepNumber: idx + 1,
+          accent: "var(--color-accent)",
+        };
+      }
+      if (event) {
+        return {
+          id: `event-${month}`,
+          month,
+          label: event.label,
+          sublabel: event.sublabel,
+          icon: event.icon,
+          kind: "milestone",
+          netWorth: netWorthAt[month]!,
+          stepNumber: idx + 1,
+          accent: event.accent,
+        };
+      }
+      return {
+        id: `checkpoint-${month}`,
+        month,
+        label: `${month / 12} year${month / 12 > 1 ? "s" : ""} in`,
+        sublabel: "Checkpoint",
+        icon: Circle,
+        kind: "checkpoint",
+        netWorth: netWorthAt[month]!,
+        stepNumber: idx + 1,
+        accent: "var(--color-text-muted)",
+      };
+    });
+  }, [snapshot, bs, cf, goalTrajectories, activePlan]);
 
-  const xAt = (month: number) => PAD_L + (month / HORIZON) * PLOT_W;
-  const yAt = (value: number) => {
-    const range = maxY - minY || 1;
-    return PAD_T + PLOT_H - ((value - minY) / range) * PLOT_H;
-  };
+  // ── Path geometry ───────────────────────────────────────────
+  const NODE_SPACING = 200; // px between nodes vertically
+  const TOP_PAD = 60;
+  const BOTTOM_PAD = 100;
+  const containerHeight =
+    TOP_PAD + (nodes.length - 1) * NODE_SPACING + BOTTOM_PAD;
 
-  const curvePath = curve
-    .map(
-      (p, i) =>
-        `${i === 0 ? "M" : "L"} ${xAt(p.month).toFixed(2)} ${yAt(p.netWorth).toFixed(2)}`,
-    )
-    .join(" ");
+  // SVG viewBox coordinates (x: 0-1000, y: 0-containerHeight)
+  const VB_W = 1000;
+  const X_LEFT = 250;
+  const X_RIGHT = 750;
 
-  const curveAreaPath =
-    curvePath +
-    ` L ${xAt(HORIZON).toFixed(2)} ${(PAD_T + PLOT_H).toFixed(2)}` +
-    ` L ${xAt(0).toFixed(2)} ${(PAD_T + PLOT_H).toFixed(2)} Z`;
+  const nodePos = (i: number) => ({
+    x: i % 2 === 0 ? X_LEFT : X_RIGHT,
+    y: TOP_PAD + i * NODE_SPACING,
+  });
+
+  // Build connecting path with smooth cubic bezier S-curves
+  let pathD = "";
+  for (let i = 0; i < nodes.length; i++) {
+    const { x, y } = nodePos(i);
+    if (i === 0) {
+      pathD += `M ${x} ${y} `;
+    } else {
+      const prev = nodePos(i - 1);
+      const midY = (prev.y + y) / 2;
+      pathD += `C ${prev.x} ${midY}, ${x} ${midY}, ${x} ${y} `;
+    }
+  }
+
+  const finalNetWorth = nodes[nodes.length - 1]?.netWorth ?? bs.netWorth;
+  const startNetWorth = nodes[0]?.netWorth ?? bs.netWorth;
+  const gain = finalNetWorth - startNetWorth;
+
+  const milestoneCount = nodes.filter((n) => n.kind === "milestone").length;
 
   return (
     <PageShell
       eyebrow={`Journey · ${formatMonth(snapshot.period)}`}
-      title="The five-year walk ahead."
-      subtitle="A month-by-month projection of your net worth trajectory, with the milestones your plan is carrying you toward."
+      title="Your five-year walk."
+      subtitle="The path ahead, laid out one step at a time. Every node is a moment your plan carries you toward — a debt clearing, a goal reached, a checkpoint along the way."
     >
       {!alphaStatus.hasCustomData && (
         <div
@@ -180,48 +244,48 @@ export default function JourneyPage() {
             >
               Alpha Setup
             </Link>{" "}
-            for a personalized projection.
+            for a personalized path.
           </p>
         </div>
       )}
 
-      {/* Hero — next milestone + 5-year terminal */}
-      <div className="grid grid-cols-12 gap-6">
+      {/* Hero strip — journey stats */}
+      <div className="grid grid-cols-12 items-end gap-6">
         <div className="col-span-12 lg:col-span-7">
-          <p className="label-meta">Next milestone</p>
-          {firstMilestone ? (
-            <>
-              <h2 className="display-page mt-3">
-                {firstMilestone.label} · {firstMilestone.date}
-              </h2>
-              <p
-                className="lead-text mt-4"
-                style={{ color: "var(--color-text-secondary)" }}
+          <p className="label-meta">Destination</p>
+          <p className="display-hero mt-3">
+            {formatCurrency(finalNetWorth, { compact: true })}
+          </p>
+          <p
+            className="mt-3 text-sm"
+            style={{ color: "var(--color-text-secondary)" }}
+          >
+            Projected net worth 60 months from now —{" "}
+            {gain > 0 && (
+              <span
+                className="font-semibold"
+                style={{ color: "var(--color-accent)" }}
               >
-                {firstMilestone.description}
-              </p>
-            </>
-          ) : (
-            <h2 className="display-page mt-3">
-              No milestones on the horizon yet.
-            </h2>
-          )}
+                +{formatCurrency(gain, { compact: true })} from today
+              </span>
+            )}
+          </p>
         </div>
         <div className="col-span-12 lg:col-span-5">
           <div
-            className="flex flex-col gap-4 border-l pl-6"
+            className="flex flex-col gap-5 border-l pl-6"
             style={{ borderColor: "var(--color-border-light)" }}
           >
-            <HeroStat
-              label="5-year net worth"
-              value={formatCurrency(finalNetWorth, { compact: true })}
+            <MiniStat
+              label="Steps on the path"
+              value={String(nodes.length)}
+            />
+            <MiniStat
+              label="Milestones ahead"
+              value={String(milestoneCount)}
               accent
             />
-            <HeroStat
-              label="Milestones ahead"
-              value={String(milestones.length)}
-            />
-            <HeroStat
+            <MiniStat
               label="Horizon"
               value={`${HORIZON} months`}
             />
@@ -229,176 +293,121 @@ export default function JourneyPage() {
         </div>
       </div>
 
-      {/* Journey curve */}
+      {/* ── The journey path ──────────────────────────────────── */}
       <div className="section-breath-lg hairline-top pt-16">
-        <div className="mb-8 max-w-2xl">
-          <p className="label-meta">Trajectory</p>
-          <h2 className="display-page mt-2">Your net worth over 60 months.</h2>
+        <div className="mb-10 max-w-2xl">
+          <p className="label-meta">The path</p>
+          <h2 className="display-page mt-2">Walk it step by step.</h2>
           <p className="lead-text mt-4">
-            Where your wealth goes month by month under the current plan — with
-            each milestone marked at the point it lands.
+            Read top to bottom. Each node is a checkpoint your plan will hit
+            under the current stance — the path meanders between them so you
+            can feel the distance covered.
           </p>
         </div>
 
-        <svg
-          viewBox={`0 0 ${VB_W} ${VB_H}`}
-          className="h-auto w-full"
-          style={{ maxHeight: "380px" }}
-        >
-          <defs>
-            <linearGradient id="journey-area" x1="0" y1="0" x2="0" y2="1">
-              <stop
-                offset="0%"
-                stopColor="var(--color-accent)"
-                stopOpacity="0.32"
-              />
-              <stop
-                offset="100%"
-                stopColor="var(--color-accent)"
-                stopOpacity="0"
-              />
-            </linearGradient>
-            <filter id="journey-glow" x="-10%" y="-20%" width="120%" height="140%">
-              <feGaussianBlur stdDeviation="3" />
-              <feMerge>
-                <feMergeNode />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-
-          {/* Baseline line */}
-          <line
-            x1={PAD_L}
-            x2={PAD_L + PLOT_W}
-            y1={PAD_T + PLOT_H}
-            y2={PAD_T + PLOT_H}
-            stroke="var(--color-border)"
-            strokeWidth={1}
-          />
-
-          <path d={curveAreaPath} fill="url(#journey-area)" />
-          <path
-            d={curvePath}
-            fill="none"
-            stroke="var(--color-accent)"
-            strokeWidth={3}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            filter="url(#journey-glow)"
-          />
-
-          {/* Milestone pins */}
-          {milestones.map((ev) => {
-            const point = curve.find((p) => p.month === ev.month);
-            if (!point) return null;
-            const cx = xAt(ev.month);
-            const cy = yAt(point.netWorth);
-            return (
-              <g key={`${ev.month}-${ev.label}`}>
-                <line
-                  x1={cx}
-                  x2={cx}
-                  y1={cy}
-                  y2={PAD_T + PLOT_H}
-                  stroke="var(--color-accent)"
-                  strokeWidth={1}
-                  strokeDasharray="2 3"
-                  opacity={0.4}
-                />
-                <circle
-                  cx={cx}
-                  cy={cy}
-                  r={7}
-                  fill="var(--color-accent)"
-                  opacity={0.18}
-                />
-                <circle
-                  cx={cx}
-                  cy={cy}
-                  r={4}
-                  fill={
-                    ev.type === "debt"
-                      ? "var(--color-warning)"
-                      : "var(--color-accent)"
+        {/* Path container */}
+        <div className="mx-auto w-full max-w-[920px]">
+          <div
+            className="relative"
+            style={{ height: `${containerHeight}px` }}
+          >
+            {/* SVG layer for the connecting curves */}
+            <svg
+              className="absolute inset-0 h-full w-full"
+              viewBox={`0 0 ${VB_W} ${containerHeight}`}
+              preserveAspectRatio="none"
+              style={{ pointerEvents: "none" }}
+            >
+              <defs>
+                <linearGradient
+                  id="journey-path-grad"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop
+                    offset="0%"
+                    stopColor="var(--color-ink)"
+                    stopOpacity="0.6"
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor="var(--color-accent)"
+                    stopOpacity="0.8"
+                  />
+                </linearGradient>
+                <style>{`
+                  @keyframes journeyDraw {
+                    from { stroke-dashoffset: 3000; }
+                    to { stroke-dashoffset: 0; }
                   }
-                  stroke="var(--color-page-bg)"
-                  strokeWidth={1.5}
-                />
-              </g>
-            );
-          })}
+                  .journey-path {
+                    stroke-dasharray: 6 10;
+                    animation: journeyDraw 2s cubic-bezier(0.22, 0.61, 0.36, 1) 0.2s backwards;
+                  }
+                  @keyframes journeyNode {
+                    from { opacity: 0; transform: translate(-50%, 10px); }
+                    to { opacity: 1; transform: translate(-50%, 0); }
+                  }
+                  .journey-node {
+                    opacity: 0;
+                    animation: journeyNode 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+                  }
+                  @keyframes journeyPulse {
+                    0%, 100% { transform: scale(1); opacity: 0.4; }
+                    50% { transform: scale(1.15); opacity: 0.2; }
+                  }
+                  .journey-pulse {
+                    animation: journeyPulse 2.8s ease-in-out infinite;
+                    transform-origin: center;
+                  }
+                `}</style>
+              </defs>
+              <path
+                d={pathD}
+                fill="none"
+                stroke="url(#journey-path-grad)"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="journey-path"
+              />
+            </svg>
 
-          {/* X-axis labels */}
-          <text
-            x={xAt(0)}
-            y={PAD_T + PLOT_H + 22}
-            fontSize={11}
-            fontWeight={600}
-            fill="var(--color-text-primary)"
-            style={{ letterSpacing: "0.04em", textTransform: "uppercase" }}
-          >
-            {formatMonthWithOffset(snapshot.period, 0)}
-          </text>
-          <text
-            x={xAt(HORIZON)}
-            y={PAD_T + PLOT_H + 22}
-            textAnchor="end"
-            fontSize={11}
-            fontWeight={600}
-            fill="var(--color-text-primary)"
-            style={{ letterSpacing: "0.04em", textTransform: "uppercase" }}
-          >
-            {formatMonthWithOffset(snapshot.period, HORIZON)}
-          </text>
+            {/* HTML node layer */}
+            {nodes.map((node, i) => {
+              const pos = nodePos(i);
+              const leftPct = (pos.x / VB_W) * 100;
+              const topPx = pos.y;
+              const delay = 0.4 + i * 0.12;
 
-          {/* Terminal callout */}
-          <g>
-            <line
-              x1={xAt(HORIZON)}
-              x2={xAt(HORIZON) + 14}
-              y1={yAt(finalNetWorth)}
-              y2={yAt(finalNetWorth)}
-              stroke="var(--color-accent)"
-              strokeWidth={1.5}
-              opacity={0.6}
-            />
-            <g transform={`translate(${xAt(HORIZON) + 18}, ${yAt(finalNetWorth) - 14})`}>
-              <text
-                x={0}
-                y={0}
-                fontSize={10}
-                fontWeight={600}
-                fill="var(--color-text-muted)"
-                style={{ letterSpacing: "0.1em", textTransform: "uppercase" }}
-              >
-                5Y
-              </text>
-              <text
-                x={0}
-                y={16}
-                fontSize={16}
-                fontWeight={700}
-                fill="var(--color-ink)"
-                style={{ letterSpacing: "-0.02em" }}
-              >
-                {formatCurrency(finalNetWorth, { compact: true })}
-              </text>
-            </g>
-          </g>
-        </svg>
+              return (
+                <div
+                  key={node.id}
+                  className="journey-node absolute"
+                  style={{
+                    left: `${leftPct}%`,
+                    top: `${topPx}px`,
+                    animationDelay: `${delay}s`,
+                  }}
+                >
+                  <NodeCard node={node} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      {/* Milestone list */}
+      {/* ── Milestone list — chronological table ──────────────── */}
       <div className="section-breath-lg hairline-top pt-16">
         <div className="mb-8 flex items-end justify-between">
           <div className="max-w-2xl">
-            <p className="label-meta">Milestones</p>
-            <h2 className="display-page mt-2">Every flag on the map.</h2>
-            <p className="lead-text mt-4">
-              Chronological list of each moment along the path — debt clearing,
-              goals reaching target, each with its projected landing date.
-            </p>
+            <p className="label-meta">All checkpoints</p>
+            <h2 className="display-page mt-2">
+              Every node, in the order you&apos;ll reach them.
+            </h2>
           </div>
           <Link
             href="/scenarios"
@@ -409,102 +418,217 @@ export default function JourneyPage() {
           </Link>
         </div>
 
-        {milestones.length === 0 ? (
-          <p
-            className="body-editorial"
-            style={{ color: "var(--color-text-muted)" }}
-          >
-            No milestones land in the next {HORIZON} months under the current
-            plan. Try a different stance on the Scenarios page to surface
-            nearer outcomes.
-          </p>
-        ) : (
-          <div className="flex flex-col">
-            {milestones.map((ev) => {
-              const EvIcon = ev.icon;
-              return (
-                <div
-                  key={`${ev.month}-${ev.label}`}
-                  className="grid grid-cols-12 items-center gap-4 py-5"
-                  style={{
-                    borderBottom: "1px solid var(--color-border-light)",
-                  }}
-                >
-                  <div className="col-span-1">
-                    <span
-                      className="flex h-9 w-9 items-center justify-center rounded-xl"
-                      style={{
-                        backgroundColor:
-                          ev.type === "debt"
-                            ? "var(--color-warning-light)"
-                            : "var(--color-accent-light)",
-                        color:
-                          ev.type === "debt"
-                            ? "var(--color-warning)"
-                            : "var(--color-accent)",
-                      }}
-                    >
-                      <EvIcon size={16} />
-                    </span>
-                  </div>
-                  <div className="col-span-5">
-                    <p
-                      className="text-[16px] font-semibold tracking-tight"
-                      style={{
-                        color: "var(--color-text-primary)",
-                        letterSpacing: "-0.015em",
-                      }}
-                    >
-                      {ev.label}
-                    </p>
-                    <p
-                      className="mt-0.5 text-[12px]"
-                      style={{ color: "var(--color-text-muted)" }}
-                    >
-                      {ev.description}
-                    </p>
-                  </div>
-                  <div className="col-span-3 text-right">
-                    <p
-                      className="label-meta"
-                      style={{ color: "var(--color-text-muted)" }}
-                    >
-                      Month {ev.month}
-                    </p>
-                    <p
-                      className="mt-1 text-[14px] font-semibold"
-                      style={{ color: "var(--color-text-primary)" }}
-                    >
-                      {ev.date}
-                    </p>
-                  </div>
-                  <div className="col-span-3 text-right">
-                    <p
-                      className="label-meta"
-                      style={{ color: "var(--color-text-muted)" }}
-                    >
-                      Net worth
-                    </p>
-                    <p
-                      className="mt-1 text-[15px] font-semibold tabular-nums"
-                      style={{ color: "var(--color-accent)" }}
-                    >
-                      {formatCurrency(ev.value, { compact: true })}
-                    </p>
-                  </div>
+        <div className="flex flex-col">
+          {nodes.map((node) => {
+            const Icon = node.icon;
+            return (
+              <div
+                key={`list-${node.id}`}
+                className="grid grid-cols-12 items-center gap-4 py-5"
+                style={{ borderBottom: "1px solid var(--color-border-light)" }}
+              >
+                <div className="col-span-1 text-center">
+                  <span
+                    className="inline-block text-[11px] font-bold tabular-nums"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
+                    {String(node.stepNumber).padStart(2, "0")}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
-        )}
+                <div className="col-span-1">
+                  <span
+                    className="flex h-9 w-9 items-center justify-center rounded-xl"
+                    style={{
+                      backgroundColor:
+                        node.kind === "milestone" || node.kind === "start" || node.kind === "final"
+                          ? node.accent + "22"
+                          : "var(--color-surface-low)",
+                      color: node.accent,
+                    }}
+                  >
+                    <Icon size={16} />
+                  </span>
+                </div>
+                <div className="col-span-5">
+                  <p
+                    className="text-[15px] font-semibold"
+                    style={{ color: "var(--color-text-primary)" }}
+                  >
+                    {node.label}
+                  </p>
+                  <p
+                    className="mt-0.5 text-[12px]"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
+                    {node.sublabel}
+                  </p>
+                </div>
+                <div className="col-span-2 text-right">
+                  <p className="label-meta">Month</p>
+                  <p
+                    className="mt-1 text-[13px] font-semibold"
+                    style={{ color: "var(--color-text-primary)" }}
+                  >
+                    {node.month === 0
+                      ? "Now"
+                      : formatMonthWithOffset(snapshot.period, node.month)}
+                  </p>
+                </div>
+                <div className="col-span-3 text-right">
+                  <p className="label-meta">Net worth</p>
+                  <p
+                    className="mt-1 text-[14px] font-semibold tabular-nums"
+                    style={{ color: "var(--color-accent)" }}
+                  >
+                    {formatCurrency(node.netWorth, { compact: true })}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </PageShell>
   );
 }
 
+/* ── NodeCard ─────────────────────────────────────────────────── */
+
+function NodeCard({ node }: { node: JourneyNode }) {
+  const Icon = node.icon;
+  const isStart = node.kind === "start";
+  const isFinal = node.kind === "final";
+  const isMilestone = node.kind === "milestone";
+  const isCheckpoint = node.kind === "checkpoint";
+
+  // Sizing
+  const circleSize = isStart || isFinal ? 128 : isMilestone ? 104 : 76;
+  const iconSize = isStart || isFinal ? 32 : isMilestone ? 24 : 18;
+  const haloSize = circleSize + 32;
+
+  const circleBg = isCheckpoint ? "var(--color-surface)" : node.accent;
+  const iconColor = isCheckpoint ? node.accent : "#ffffff";
+  const borderStyle = isCheckpoint
+    ? `2px dashed ${node.accent}`
+    : "none";
+
+  return (
+    <div
+      className="flex flex-col items-center gap-3"
+      style={{ transform: "translateX(-50%)" }}
+    >
+      {/* "You are here" tag only on start */}
+      {isStart && (
+        <div
+          className="mb-1 flex items-center gap-1.5 rounded-full px-3 py-1"
+          style={{
+            backgroundColor: "var(--color-accent)",
+            color: "#ffffff",
+          }}
+        >
+          <span
+            className="h-1.5 w-1.5 animate-pulse rounded-full"
+            style={{ backgroundColor: "#ffffff" }}
+          />
+          <span className="text-[9px] font-bold uppercase tracking-[0.14em]">
+            You are here
+          </span>
+        </div>
+      )}
+
+      {/* Circle node */}
+      <div className="relative flex items-center justify-center">
+        {/* Outer halo */}
+        {(isStart || isFinal || isMilestone) && (
+          <div
+            className="absolute rounded-full journey-pulse"
+            style={{
+              width: `${haloSize}px`,
+              height: `${haloSize}px`,
+              backgroundColor: node.accent,
+              opacity: 0.2,
+            }}
+          />
+        )}
+        {/* Main circle */}
+        <div
+          className="relative flex items-center justify-center rounded-full"
+          style={{
+            width: `${circleSize}px`,
+            height: `${circleSize}px`,
+            backgroundColor: circleBg,
+            border: borderStyle,
+            boxShadow:
+              isStart || isFinal
+                ? `0 12px 40px -10px ${node.accent}88`
+                : isMilestone
+                  ? `0 8px 24px -8px ${node.accent}55`
+                  : "none",
+            color: iconColor,
+          }}
+        >
+          <Icon size={iconSize} />
+        </div>
+        {/* Step number badge */}
+        <div
+          className="absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold tabular-nums"
+          style={{
+            backgroundColor: "var(--color-surface)",
+            color: "var(--color-text-primary)",
+            boxShadow: "0 2px 8px -2px rgba(45,52,53,0.2)",
+            border: `1.5px solid ${node.accent}`,
+          }}
+        >
+          {String(node.stepNumber).padStart(2, "0")}
+        </div>
+      </div>
+
+      {/* Label block */}
+      <div
+        className="flex w-[200px] flex-col items-center text-center"
+        style={{ marginTop: "4px" }}
+      >
+        <p
+          className="text-[14px] font-bold leading-tight"
+          style={{
+            color: isCheckpoint
+              ? "var(--color-text-muted)"
+              : "var(--color-text-primary)",
+            letterSpacing: "-0.015em",
+          }}
+        >
+          {node.label}
+        </p>
+        <p
+          className="mt-0.5 text-[10px]"
+          style={{ color: "var(--color-text-muted)" }}
+        >
+          {node.sublabel}
+        </p>
+        {!isCheckpoint && (
+          <div
+            className="mt-2 rounded-md px-2.5 py-1"
+            style={{
+              backgroundColor: "var(--color-surface)",
+              border: `1px solid ${node.accent}33`,
+            }}
+          >
+            <span
+              className="text-[11px] font-semibold tabular-nums"
+              style={{ color: node.accent }}
+            >
+              {formatCurrency(node.netWorth, { compact: true })}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── Helpers ──────────────────────────────────────────────────── */
 
-function HeroStat({
+function MiniStat({
   label,
   value,
   accent,
