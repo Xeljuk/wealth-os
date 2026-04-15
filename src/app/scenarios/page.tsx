@@ -244,14 +244,14 @@ export default function ScenarioSimulator() {
   }
 
   const enriched = useMemo((): EnrichedPlan[] => {
-    const goals = snapshot.goals;
-    const g1 = goals.find((g) => g.id === "g1") ?? goals[0];
-    const g2 = goals.find((g) => g.id === "g2") ?? goals[1];
-    const g3 = goals.find((g) => g.id === "g3") ?? goals[2];
+    const sorted = [...snapshot.goals].sort((a, b) => a.priority - b.priority);
+    const [g1, g2, g3] = sorted;
+    const gap = (g: typeof sorted[number] | undefined) =>
+      g ? Math.max(0, g.targetAmount - g.currentAmount) : 0;
     const gaps = {
-      property: g1 ? g1.targetAmount - g1.currentAmount : 0,
-      emergency: g2 ? g2.targetAmount - g2.currentAmount : 0,
-      portfolio: g3 ? g3.targetAmount - g3.currentAmount : 0,
+      property: gap(g1),
+      emergency: gap(g2),
+      portfolio: gap(g3),
     };
     const baseDebtService = snapshot.cashFlow.totalDebtService;
     const totalLiabilities = snapshot.balanceSheet.totalLiabilities;

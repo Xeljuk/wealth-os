@@ -18,14 +18,11 @@ type PlanAllocationField = keyof Pick<
   "goalFunding" | "liquidityReserve" | "investmentContribution"
 >;
 
-const GOAL_FUNDING_MAP: Record<
-  string,
-  { field: PlanAllocationField; source: string }
-> = {
-  g1: { field: "goalFunding", source: "Goal funding" },
-  g2: { field: "liquidityReserve", source: "Liquidity reserve" },
-  g3: { field: "investmentContribution", source: "Investment contribution" },
-};
+const FUNDING_SLOTS: { field: PlanAllocationField; source: string }[] = [
+  { field: "goalFunding", source: "Goal funding" },
+  { field: "liquidityReserve", source: "Liquidity reserve" },
+  { field: "investmentContribution", source: "Investment contribution" },
+];
 
 export interface GoalTrajectory extends Goal {
   remaining: number;
@@ -233,10 +230,17 @@ export function WealthProvider({ children }: { children: ReactNode }) {
         ? totalGoalRequired / cashFlow.allocatableSurplus
         : 0;
 
+    const sortedByPriority = [...goals].sort((a, b) => a.priority - b.priority);
+    const slotByGoalId = new Map<string, (typeof FUNDING_SLOTS)[number]>();
+    sortedByPriority.forEach((g, idx) => {
+      const slot = FUNDING_SLOTS[idx] ?? FUNDING_SLOTS[0]!;
+      slotByGoalId.set(g.id, slot);
+    });
+
     const goalTrajectories: GoalTrajectory[] = goals.map((g) => {
-      const mapping = GOAL_FUNDING_MAP[g.id];
-      const allocation = mapping ? activePlan[mapping.field] : 0;
-      const allocationSource = mapping?.source ?? "Unallocated";
+      const mapping = slotByGoalId.get(g.id) ?? FUNDING_SLOTS[0]!;
+      const allocation = activePlan[mapping.field];
+      const allocationSource = mapping.source;
       const remaining = g.targetAmount - g.currentAmount;
       const projectedMonths =
         allocation > 0 ? Math.ceil(remaining / allocation) : 999;

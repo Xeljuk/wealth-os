@@ -3,14 +3,21 @@ import { getDatabase } from "@/server/db/client";
 export const runtime = "nodejs";
 
 const USER_ID = 1;
-const MAX_GOALS = 3;
-const SLOT_IDS = ["g1", "g2", "g3"] as const;
+const MAX_GOALS = 10;
 
-const STATUS_BY_PRIORITY: Record<number, "at_risk" | "tight" | "on_track"> = {
-  1: "at_risk",
-  2: "tight",
-  3: "on_track",
-};
+function statusForPriority(priority: number): "at_risk" | "tight" | "on_track" {
+  if (priority === 1) return "at_risk";
+  if (priority === 2) return "tight";
+  return "on_track";
+}
+
+function nextGoalId(existing: Set<string>): string {
+  for (let i = 1; i <= MAX_GOALS * 2; i++) {
+    const candidate = `g${i}`;
+    if (!existing.has(candidate)) return candidate;
+  }
+  return `g_${Date.now().toString(36)}`;
+}
 
 function isMonth(value: unknown): value is string {
   return typeof value === "string" && /^\d{4}-\d{2}$/.test(value);
@@ -46,8 +53,8 @@ function validate(body: unknown): { ok: true; value: CreateGoalBody } | { ok: fa
     return { ok: false, message: "targetMonth must be YYYY-MM" };
   }
   const priority = Number(g.priority);
-  if (![1, 2, 3].includes(priority)) {
-    return { ok: false, message: "priority must be 1, 2, or 3" };
+  if (!Number.isInteger(priority) || priority < 1 || priority > MAX_GOALS) {
+    return { ok: false, message: `priority must be an integer between 1 and ${MAX_GOALS}` };
   }
   return {
     ok: true,
@@ -89,12 +96,9 @@ export async function POST(request: Request) {
     }
 
     const usedIds = new Set(existing.map((r) => r.id));
-    const newId = SLOT_IDS.find((id) => !usedIds.has(id));
-    if (!newId) {
-      return Response.json({ error: "no_slot" }, { status: 400 });
-    }
+    const newId = nextGoalId(usedIds);
 
-    const status = STATUS_BY_PRIORITY[parsed.value.priority] ?? "tight";
+    const status = statusForPriority(parsed.value.priority);
 
     db.prepare(
       "INSERT INTO goals (id, user_id, name, goal_type, target_amount, current_amount, target_date, priority, status_override) VALUES (?, ?, ?, 'custom', ?, ?, ?, ?, ?)",
