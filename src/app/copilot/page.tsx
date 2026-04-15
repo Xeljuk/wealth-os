@@ -108,6 +108,31 @@ function DiffStat({
   );
 }
 
+function AbsoluteStat({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+}) {
+  return (
+    <div>
+      <p className="label-meta">{label}</p>
+      <p
+        className="mt-2 text-[22px] font-bold tabular-nums"
+        style={{
+          color: accent ? "var(--color-accent)" : "var(--color-text-primary)",
+          letterSpacing: "-0.02em",
+        }}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
 /* ── Markdown renderer for **bold** headings + paragraphs ─────── */
 function renderMarkdown(text: string) {
   const blocks = text.split(/\n\n+/);
@@ -143,7 +168,7 @@ function renderMarkdown(text: string) {
   });
 }
 
-/* ── Page ──────────────────────────────────────────────────────── */
+/* ── Page ───────────────────────────────────────────────────────── */
 export default function CopilotPage() {
   const [currentQuestion, setCurrentQuestion] = useState<string>("");
   const [answer, setAnswer] = useState<string>("");
@@ -330,26 +355,65 @@ export default function CopilotPage() {
       title="Your wealth strategist, on call."
       subtitle={`Synthesises ${profile.name}'s current model — balance sheet, cash flow, goals, scenarios — into plain-language guidance. Ground every answer in your real numbers.`}
     >
-      {/* ── Month-over-month diff ────────────────────────────── */}
-      {history.length >= 2 && (() => {
-        const [curr, prev] = history;
-        const dNet = curr!.net_worth - prev!.net_worth;
-        const dSurplus = curr!.allocatable_surplus - prev!.allocatable_surplus;
-        const dDebt = curr!.total_debt_service - prev!.total_debt_service;
-        const arrow = (n: number) => (n > 0 ? "↑" : n < 0 ? "↓" : "·");
-        const good = (n: number) =>
-          n > 0 ? "var(--color-accent)" : n < 0 ? "var(--color-negative)" : "var(--color-text-muted)";
-        const badInv = (n: number) =>
-          n < 0 ? "var(--color-accent)" : n > 0 ? "var(--color-negative)" : "var(--color-text-muted)";
-        return (
-          <div className="mb-10 grid grid-cols-1 gap-6 rounded-2xl px-7 py-6 md:grid-cols-3"
-            style={{ backgroundColor: "var(--color-vellum-deep)" }}>
-            <DiffStat label="Net worth" delta={dNet} color={good(dNet)} arrow={arrow(dNet)} />
-            <DiffStat label="Allocatable" delta={dSurplus} color={good(dSurplus)} arrow={arrow(dSurplus)} />
-            <DiffStat label="Debt service" delta={dDebt} color={badInv(dDebt)} arrow={arrow(dDebt)} />
+      {/* ── Stat strip — absolute on first look, deltas after ──── */}
+      {history.length >= 2 ? (
+        (() => {
+          const [curr, prev] = history;
+          const dNet = curr!.net_worth - prev!.net_worth;
+          const dSurplus = curr!.allocatable_surplus - prev!.allocatable_surplus;
+          const dDebt = curr!.total_debt_service - prev!.total_debt_service;
+          const arrow = (n: number) => (n > 0 ? "↑" : n < 0 ? "↓" : "·");
+          const good = (n: number) =>
+            n > 0 ? "var(--color-accent)" : n < 0 ? "var(--color-negative)" : "var(--color-text-muted)";
+          const badInv = (n: number) =>
+            n < 0 ? "var(--color-accent)" : n > 0 ? "var(--color-negative)" : "var(--color-text-muted)";
+          return (
+            <div
+              className="mb-10 grid grid-cols-1 gap-6 rounded-2xl px-7 py-6 md:grid-cols-3"
+              style={{ backgroundColor: "var(--color-vellum-deep)" }}
+            >
+              <DiffStat label="Net worth" delta={dNet} color={good(dNet)} arrow={arrow(dNet)} />
+              <DiffStat label="Allocatable" delta={dSurplus} color={good(dSurplus)} arrow={arrow(dSurplus)} />
+              <DiffStat label="Debt service" delta={dDebt} color={badInv(dDebt)} arrow={arrow(dDebt)} />
+            </div>
+          );
+        })()
+      ) : (
+        <div
+          className="mb-10 rounded-2xl px-7 py-6"
+          style={{ backgroundColor: "var(--color-vellum-deep)" }}
+        >
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <AbsoluteStat
+              label="Net worth"
+              value={formatCurrency(bs.netWorth, { compact: true })}
+              accent
+            />
+            <AbsoluteStat
+              label="Allocatable / mo"
+              value={formatCurrency(cf.allocatableSurplus, { compact: true })}
+            />
+            <AbsoluteStat
+              label="Debt service / mo"
+              value={formatCurrency(cf.totalDebtService, { compact: true })}
+            />
           </div>
-        );
-      })()}
+          <p
+            className="mt-5 text-[12px] leading-relaxed"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            Based on what you entered during setup.{" "}
+            <Link
+              href="/month-close"
+              className="font-semibold underline-offset-2 hover:underline"
+              style={{ color: "var(--color-accent)" }}
+            >
+              Close your first month
+            </Link>{" "}
+            to start tracking month-over-month changes.
+          </p>
+        </div>
+      )}
 
       {/* ── Narrative strip (hero) ────────────────────────────── */}
       {!canNarrate || !featured || !ft ? (

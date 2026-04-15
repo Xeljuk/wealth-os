@@ -2,6 +2,7 @@ import { MOCK_SNAPSHOT } from "@/lib/mock-data";
 import type { PlanStance } from "@/lib/types";
 import type { AlphaIntakePayload } from "@/lib/alpha-intake";
 import { getDatabase } from "@/server/db/client";
+import { ensureSnapshotLogTable } from "@/server/services/snapshot-log";
 
 export const runtime = "nodejs";
 
@@ -144,6 +145,8 @@ function applyDemo(db: ReturnType<typeof getDatabase>) {
     db.prepare("DELETE FROM expense_lines WHERE user_id = 1").run();
     db.prepare("DELETE FROM goals WHERE user_id = 1").run();
     db.prepare("DELETE FROM net_worth_history WHERE user_id = 1").run();
+    ensureSnapshotLogTable(db);
+    db.prepare("DELETE FROM monthly_snapshot_log WHERE user_id = 1").run();
 
     for (const a of MOCK_SNAPSHOT.balanceSheet.assets) {
       db.prepare(
@@ -227,6 +230,8 @@ function applyCustom(db: ReturnType<typeof getDatabase>, payload: Extract<AlphaI
     db.prepare("DELETE FROM expense_lines WHERE user_id = 1").run();
     db.prepare("DELETE FROM goals WHERE user_id = 1").run();
     db.prepare("DELETE FROM net_worth_history WHERE user_id = 1").run();
+    ensureSnapshotLogTable(db);
+    db.prepare("DELETE FROM monthly_snapshot_log WHERE user_id = 1").run();
 
     const asOfDate = `${period}-01`;
     db.prepare(
