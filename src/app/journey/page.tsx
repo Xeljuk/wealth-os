@@ -125,57 +125,84 @@ function zoneForMonth(month: number): Zone {
 /* ── Page ─────────────────────────────────────────────────────── */
 /* ── MinimapStrip — compact horizontal overview ──────────────── */
 
+// Horizontal padding inside the minimap (must match px-8 = 32px on each side)
+const MINIMAP_PAD_PX = 32;
+
+/**
+ * Convert a month (0..HORIZON) to a `left: calc(...)` value that
+ * positions an absolutely-placed element along the scrubber.
+ * Uses fractional math because `percent * percent` isn't valid in CSS calc.
+ */
+function leftAtMonth(month: number): string {
+  const frac = Math.max(0, Math.min(1, month / HORIZON));
+  return `calc(${MINIMAP_PAD_PX}px + (100% - ${MINIMAP_PAD_PX * 2}px) * ${frac})`;
+}
+
 function MinimapStrip({
+  period,
   nodes,
   currentIdx,
   onJump,
 }: {
+  period: string;
   nodes: JourneyNode[];
   currentIdx: number;
   onJump: (idx: number) => void;
 }) {
+  // Year tick markers — build at year boundaries (month 0, 12, 24, ..., HORIZON)
+  const yearTicks: { month: number; label: string; date: string }[] = [];
+  for (let m = 0; m <= HORIZON; m += 12) {
+    const y = m / 12;
+    yearTicks.push({
+      month: m,
+      label: m === 0 ? "Now" : y === 1 ? "1 yr" : `${y} yrs`,
+      date: formatMonthWithOffset(period, m),
+    });
+  }
+
+  const currentNode = nodes[currentIdx];
+
   return (
     <div
-      className="relative h-[78px] w-full overflow-visible rounded-2xl px-8 py-4"
+      className="relative h-[120px] w-full overflow-visible rounded-2xl px-8 pt-5"
       style={{ backgroundColor: "var(--color-surface)" }}
     >
-      {/* Guide line across the middle — dashed hairline */}
-      <div
-        className="absolute left-8 right-8 top-1/2 h-px -translate-y-1/2"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(90deg, var(--color-border) 0 4px, transparent 4px 8px)",
-        }}
-      />
-
-      {/* Zone band markers */}
-      {ZONES.map((zone, zi) => {
-        const startPct = (zone.monthStart / HORIZON) * 100;
-        const widthPct = ((zone.monthEnd - zone.monthStart) / HORIZON) * 100;
+      {/* Zone band markers — behind the scrubber */}
+      {ZONES.map((zone) => {
+        const startFrac = zone.monthStart / HORIZON;
+        const endFrac = zone.monthEnd / HORIZON;
+        const widthFrac = endFrac - startFrac;
         return (
           <div
             key={zone.id}
-            className="absolute bottom-1 top-1 rounded-md"
+            className="absolute rounded-md"
             style={{
-              left: `calc(32px + ${startPct}% * (100% - 64px) / 100)`,
-              width: `calc(${widthPct}% * (100% - 64px) / 100)`,
+              left: `calc(${MINIMAP_PAD_PX}px + (100% - ${MINIMAP_PAD_PX * 2}px) * ${startFrac})`,
+              width: `calc((100% - ${MINIMAP_PAD_PX * 2}px) * ${widthFrac})`,
+              top: "16px",
+              height: "34px",
               backgroundColor: zone.accent,
-              opacity: 0.06,
+              opacity: 0.08,
               pointerEvents: "none",
-              // Small offset for separation between bands
-              marginLeft: zi === 0 ? 0 : 1,
             }}
           />
         );
       })}
 
-      {/* Node dots */}
+      {/* Scrubber line — dashed hairline */}
+      <div
+        className="absolute left-8 right-8 h-px"
+        style={{
+          top: "33px",
+          backgroundImage:
+            "repeating-linear-gradient(90deg, var(--color-border) 0 4px, transparent 4px 8px)",
+        }}
+      />
+
+      {/* Node dots (centered on the line at top=33px) */}
       {nodes.map((node, i) => {
-        const leftPct = (node.month / HORIZON) * 100;
         const isCurrent = i === currentIdx;
         const isReached = i < currentIdx;
-
-        // Kind → dot styling
         const kindMeta = getDotMeta(node.kind);
         const size = isCurrent ? 18 : kindMeta.size;
         const bg = isCurrent
@@ -183,7 +210,7 @@ function MinimapStrip({
           : kindMeta.filled
             ? isReached
               ? node.accent
-              : node.accent + "88"
+              : node.accent + "aa"
             : "var(--color-surface)";
         const border = kindMeta.border
           ? `${kindMeta.borderWidth} ${kindMeta.borderStyle} ${kindMeta.borderColor(node.accent)}`
@@ -194,9 +221,10 @@ function MinimapStrip({
             key={node.id}
             type="button"
             onClick={() => onJump(i)}
-            className="absolute top-1/2 rounded-full transition-all duration-200 hover:scale-125"
+            className="absolute rounded-full transition-all duration-200 hover:scale-125"
             style={{
-              left: `calc(32px + ${leftPct}% * (100% - 64px) / 100)`,
+              left: leftAtMonth(node.month),
+              top: "33px",
               width: `${size}px`,
               height: `${size}px`,
               transform: "translate(-50%, -50%)",
@@ -213,25 +241,78 @@ function MinimapStrip({
         );
       })}
 
-      {/* "You are here" marker label */}
-      {nodes[currentIdx] && (
-        <div
-          className="pointer-events-none absolute transition-all duration-300"
-          style={{
-            left: `calc(32px + ${(nodes[currentIdx].month / HORIZON) * 100}% * (100% - 64px) / 100)`,
-            top: "calc(50% - 30px)",
-            transform: "translateX(-50%)",
-          }}
-        >
-          <span
-            className="whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em]"
+      {/* Year tick labels — below the line, one per year */}
+      {yearTicks.map((tick) => {
+        const isCurrentYear =
+          currentNode !== undefined &&
+          Math.abs(currentNode.month - tick.month) < 6;
+        return (
+          <div
+            key={`tick-${tick.month}`}
+            className="pointer-events-none absolute flex flex-col items-center"
             style={{
-              backgroundColor: nodes[currentIdx].accent,
-              color: "#ffffff",
+              left: leftAtMonth(tick.month),
+              top: "54px",
+              transform: "translateX(-50%)",
             }}
           >
-            You
-          </span>
+            {/* Tick mark */}
+            <span
+              className="h-2 w-px"
+              style={{
+                backgroundColor: isCurrentYear
+                  ? "var(--color-accent)"
+                  : "var(--color-border)",
+              }}
+            />
+            <span
+              className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em]"
+              style={{
+                color: isCurrentYear
+                  ? "var(--color-accent)"
+                  : "var(--color-text-primary)",
+              }}
+            >
+              {tick.label}
+            </span>
+            <span
+              className="text-[9px] tabular-nums"
+              style={{ color: "var(--color-text-muted)" }}
+            >
+              {tick.date}
+            </span>
+          </div>
+        );
+      })}
+
+      {/* "You are here" marker — pill above the current dot */}
+      {currentNode && (
+        <div
+          className="pointer-events-none absolute"
+          style={{
+            left: leftAtMonth(currentNode.month),
+            top: "6px",
+            transform: "translateX(-50%)",
+            transition:
+              "left 0.45s cubic-bezier(0.22, 0.61, 0.36, 1)",
+          }}
+        >
+          <div className="flex flex-col items-center gap-0.5">
+            <span
+              className="whitespace-nowrap rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em]"
+              style={{
+                backgroundColor: currentNode.accent,
+                color: "#ffffff",
+                boxShadow: `0 4px 12px -3px ${currentNode.accent}66`,
+              }}
+            >
+              You
+            </span>
+            <span
+              className="h-1.5 w-1.5 rotate-45"
+              style={{ backgroundColor: currentNode.accent }}
+            />
+          </div>
         </div>
       )}
     </div>
@@ -909,6 +990,7 @@ export default function JourneyPage() {
         {/* Minimap strip */}
         <div className="mt-4">
           <MinimapStrip
+            period={snapshot.period}
             nodes={nodes}
             currentIdx={currentIdx}
             onJump={goto}
