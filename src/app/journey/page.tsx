@@ -763,7 +763,7 @@ export default function JourneyPage() {
       )}
 
       {/* Hero strip — journey stats */}
-      <div className="grid grid-cols-12 items-end gap-6">
+      <div className="stagger-enter stagger-1 grid grid-cols-12 items-end gap-6">
         <div className="col-span-12 lg:col-span-7">
           <p className="label-meta">Destination</p>
           <p className="display-hero mt-3">
@@ -807,7 +807,7 @@ export default function JourneyPage() {
       </div>
 
       {/* ── Live stepper — one scene at a time ────────────────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-2">
         <div className="mb-8 max-w-2xl">
           <p className="label-meta">The walk</p>
           <h2 className="display-page mt-2">One step at a time.</h2>
@@ -1249,7 +1249,7 @@ export default function JourneyPage() {
       </div>
 
       {/* ── Milestone list — chronological table ──────────────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-3">
         <div className="mb-8 flex items-end justify-between">
           <div className="max-w-2xl">
             <p className="label-meta">All checkpoints</p>
@@ -1393,7 +1393,7 @@ export function JourneySkeleton() {
     <>
       {/* Stepper scene card */}
       <div
-        className="rounded-3xl p-10"
+        className="stagger-enter stagger-1 rounded-3xl p-10"
         style={{ backgroundColor: "var(--color-vellum-deep)" }}
       >
         <div className="flex items-start justify-between gap-6">
@@ -1424,7 +1424,7 @@ export function JourneySkeleton() {
       </div>
 
       {/* Minimap strip */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-2">
         <div className="mb-8 flex flex-col gap-3">
           <Skeleton width={80} height={12} />
           <Skeleton width={280} height={28} />
@@ -1433,7 +1433,7 @@ export function JourneySkeleton() {
       </div>
 
       {/* Zones summary */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-3">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <div

@@ -393,7 +393,7 @@ export default function AssetBoard() {
       )}
 
       {/* ── Hero: Total assets + balance sheet stats ──────────── */}
-      <div className="grid grid-cols-12 items-end gap-6">
+      <div className="stagger-enter stagger-1 grid grid-cols-12 items-end gap-6">
         <div className="col-span-12 lg:col-span-8">
           <p className="label-meta">Total Assets</p>
           <p className="display-hero mt-3">{formatCurrency(totalAssets)}</p>
@@ -500,7 +500,7 @@ export default function AssetBoard() {
       </div>
 
       {/* ── Structure section: liquidity + productivity ──────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-2">
         <div className="mb-10 max-w-2xl">
           <p className="label-meta">Structural view</p>
           <h2 className="display-page mt-2">How your capital behaves.</h2>
@@ -637,7 +637,7 @@ export default function AssetBoard() {
       </div>
 
       {/* ── Asset inventory — CRUD grid ───────────────────────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-3">
         <div className="mb-8 flex items-end justify-between">
           <div className="max-w-2xl">
             <p className="label-meta">Inventory</p>
@@ -766,7 +766,7 @@ export default function AssetBoard() {
       </div>
 
       {/* ── Liability structure ──────────────────────────────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-4">
         <div className="mb-8 flex items-end justify-between">
           <div className="max-w-2xl">
             <p className="label-meta">Liabilities</p>
@@ -914,7 +914,7 @@ export default function AssetBoard() {
       </div>
 
       {/* ── Insights — structural reading ────────────────────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-5">
         <div className="mb-8 max-w-2xl">
           <p className="label-meta">Structural reading</p>
           <h2 className="display-page mt-2">
@@ -1056,14 +1056,14 @@ export function AssetsSkeleton() {
   return (
     <>
       {/* Hero total */}
-      <div className="flex flex-col gap-4">
+      <div className="stagger-enter stagger-1 flex flex-col gap-4">
         <Skeleton width={110} height={12} />
         <Skeleton width="55%" height={64} rounded="rounded-lg" />
         <Skeleton width={240} height={14} />
       </div>
 
       {/* Composition bar */}
-      <div className="mt-12">
+      <div className="mt-12 stagger-enter stagger-2">
         <Skeleton width="100%" height={28} rounded="rounded-full" />
         <div className="mt-4 flex gap-6">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -1076,7 +1076,7 @@ export function AssetsSkeleton() {
       </div>
 
       {/* Asset inventory */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-3">
         <div className="mb-8 flex flex-col gap-3">
           <Skeleton width={100} height={12} />
           <Skeleton width={320} height={36} />
@@ -1100,7 +1100,7 @@ export function AssetsSkeleton() {
       </div>
 
       {/* Liabilities list */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-4">
         <div className="mb-8 flex flex-col gap-3">
           <Skeleton width={110} height={12} />
           <Skeleton width={300} height={36} />

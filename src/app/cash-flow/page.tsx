@@ -302,7 +302,7 @@ export default function CashFlowEngine() {
       )}
 
       {/* ── Top stats: inflow + allocatable + health signal ──── */}
-      <div className="grid grid-cols-12 items-end gap-6">
+      <div className="stagger-enter stagger-1 grid grid-cols-12 items-end gap-6">
         <div className="col-span-12 lg:col-span-5">
           <p className="label-meta">Monthly allocatable</p>
           <p className="display-hero mt-3">
@@ -362,7 +362,7 @@ export default function CashFlowEngine() {
       </div>
 
       {/* ── Waterfall hero ──────────────────────────────────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-2">
         <div className="mb-6 flex items-end justify-between gap-6">
           <div className="max-w-2xl">
             <p className="label-meta">Operating flow</p>
@@ -401,7 +401,7 @@ export default function CashFlowEngine() {
       </div>
 
       {/* ── Inflow composition ──────────────────────────────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-3">
         <div className="mb-8 flex items-end justify-between">
           <div className="max-w-2xl">
             <p className="label-meta">Inflow composition</p>
@@ -520,7 +520,7 @@ export default function CashFlowEngine() {
       </div>
 
       {/* ── Expense line items ──────────────────────────────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-4">
         <div className="mb-8 flex items-end justify-between">
           <div className="max-w-2xl">
             <p className="label-meta">Expense line items</p>
@@ -631,7 +631,7 @@ export default function CashFlowEngine() {
       </div>
 
       {/* ── Tensions — planning intelligence ───────────────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-5">
         <div className="mb-8 flex items-end justify-between">
           <div className="max-w-2xl">
             <p className="label-meta">Cash flow tensions</p>
@@ -763,7 +763,7 @@ export function CashFlowSkeleton() {
   return (
     <>
       {/* Hero: allocatable surplus + status */}
-      <div className="grid grid-cols-12 items-end gap-x-12 gap-y-6">
+      <div className="stagger-enter stagger-1 grid grid-cols-12 items-end gap-x-12 gap-y-6">
         <div className="col-span-12 lg:col-span-7 flex flex-col gap-4">
           <Skeleton width={110} height={12} />
           <Skeleton width="65%" height={64} rounded="rounded-lg" />
@@ -776,7 +776,7 @@ export function CashFlowSkeleton() {
       </div>
 
       {/* Waterfall */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-2">
         <div className="mb-8 flex flex-col gap-3">
           <Skeleton width={90} height={12} />
           <Skeleton width={320} height={36} />
@@ -785,7 +785,7 @@ export function CashFlowSkeleton() {
       </div>
 
       {/* Income list */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-3">
         <div className="mb-8 flex flex-col gap-3">
           <Skeleton width={140} height={12} />
           <Skeleton width={320} height={36} />
@@ -804,7 +804,7 @@ export function CashFlowSkeleton() {
       </div>
 
       {/* Expense list */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-4">
         <div className="mb-8 flex flex-col gap-3">
           <Skeleton width={160} height={12} />
           <Skeleton width={280} height={36} />

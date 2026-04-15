@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -87,6 +87,7 @@ export default function Sidebar() {
                 />
               </span>
               {label}
+              <NavPendingBar />
             </Link>
           );
         })}
@@ -100,8 +101,19 @@ export default function Sidebar() {
         >
           <Plus size={16} />
           New Entry
+          <NavPendingBar />
         </Link>
       </div>
     </aside>
   );
+}
+
+/* Renders a global top-of-viewport indeterminate bar whenever the nearest
+   ancestor <Link> is in a pending navigation state. Only one link can be
+   pending at a time (Next guarantees), so multiple NavPendingBar instances
+   is safe — only the active one actually renders. */
+function NavPendingBar() {
+  const { pending } = useLinkStatus();
+  if (!pending) return null;
+  return <span aria-hidden className="nav-pending-bar" />;
 }

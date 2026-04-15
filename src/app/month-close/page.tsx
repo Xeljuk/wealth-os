@@ -91,7 +91,7 @@ export default function MonthClosePage() {
       subtitle="Lock in the numbers as they stand today. Future months compare against this snapshot — so you can see what actually moved."
     >
       <div
-        className="rounded-2xl px-8 py-7"
+        className="stagger-enter stagger-1 rounded-2xl px-8 py-7"
         style={{ backgroundColor: "var(--color-vellum-deep)" }}
       >
         <p className="label-meta">This month's numbers</p>
@@ -105,7 +105,7 @@ export default function MonthClosePage() {
         </div>
       </div>
 
-      <div className="section-breath-lg flex flex-wrap items-center gap-3">
+      <div className="section-breath-lg flex flex-wrap items-center gap-3 stagger-enter stagger-2">
         <button
           type="button"
           onClick={() => closeMonth(true)}
@@ -151,7 +151,7 @@ export default function MonthClosePage() {
       </div>
 
       {history.length > 0 && (
-        <div className="section-breath-lg hairline-top pt-16">
+        <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-3">
           <p className="label-meta">Previous closes</p>
           <div className="mt-6 flex flex-col divide-y" style={{ borderColor: "var(--color-border-light)" }}>
             {history.map((h) => (
@@ -209,7 +209,7 @@ export function MonthCloseSkeleton() {
     <>
       {/* Stats grid */}
       <div
-        className="rounded-2xl px-8 py-7"
+        className="stagger-enter stagger-1 rounded-2xl px-8 py-7"
         style={{ backgroundColor: "var(--color-vellum-deep)" }}
       >
         <Skeleton width={150} height={12} />
@@ -224,13 +224,13 @@ export function MonthCloseSkeleton() {
       </div>
 
       {/* CTA row */}
-      <div className="section-breath-lg flex gap-3">
+      <div className="section-breath-lg flex gap-3 stagger-enter stagger-2">
         <Skeleton width={220} height={46} rounded="rounded-xl" />
         <Skeleton width={180} height={46} rounded="rounded-xl" />
       </div>
 
       {/* Previous closes */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-3">
         <Skeleton width={130} height={12} />
         <div className="mt-6 flex flex-col gap-4">
           {Array.from({ length: 3 }).map((_, i) => (

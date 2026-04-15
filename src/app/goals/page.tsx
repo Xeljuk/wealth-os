@@ -307,7 +307,7 @@ export default function GoalEngine() {
       )}
 
       {/* ── Engine summary — 4-up stats strip, flat ───────────── */}
-      <div className="grid grid-cols-2 gap-10 lg:grid-cols-4">
+      <div className="stagger-enter stagger-1 grid grid-cols-2 gap-10 lg:grid-cols-4">
         <SummaryStat
           label="Active goals"
           value={String(goals.length)}
@@ -331,7 +331,7 @@ export default function GoalEngine() {
       </div>
 
       {/* ── Primary mission — flat editorial hero ─────────────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-2">
         <div className="mb-10 flex items-start justify-between gap-6">
           <div>
             <p className="label-meta">Primary Mission</p>
@@ -449,7 +449,7 @@ export default function GoalEngine() {
 
       {/* ── Supporting goals — flat list ──────────────────────── */}
       {secondary.length > 0 && (
-        <div className="section-breath-lg hairline-top pt-16">
+        <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-3">
           <div className="mb-8">
             <p className="label-meta">Supporting goals</p>
             <h2 className="display-page mt-2">The rest of your program.</h2>
@@ -572,7 +572,7 @@ export default function GoalEngine() {
       )}
 
       {/* ── Funding reality — comparison bars ─────────────────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-4">
         <div className="mb-8 max-w-2xl">
           <p className="label-meta">Funding reality</p>
           <h2 className="display-page mt-2">Where your plan strains.</h2>
@@ -688,7 +688,7 @@ export default function GoalEngine() {
       </div>
 
       {/* ── Timeline outlook — trajectory table ──────────────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-5">
         <div className="mb-8 max-w-2xl">
           <p className="label-meta">Timeline outlook</p>
           <h2 className="display-page mt-2">Each goal&apos;s projected path.</h2>
@@ -779,7 +779,7 @@ export default function GoalEngine() {
       </div>
 
       {/* ── What you can do — flat intelligence with accent bars ─ */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-6">
         <div className="mb-8 flex items-end justify-between">
           <div className="max-w-2xl">
             <p className="label-meta">What you can do</p>
@@ -930,7 +930,7 @@ export function GoalsSkeleton() {
   return (
     <>
       {/* Hero numeric + progress */}
-      <div className="grid grid-cols-12 items-end gap-x-12 gap-y-6">
+      <div className="stagger-enter stagger-1 grid grid-cols-12 items-end gap-x-12 gap-y-6">
         <div className="col-span-12 lg:col-span-7 flex flex-col gap-4">
           <Skeleton width={110} height={12} />
           <Skeleton width="70%" height={64} rounded="rounded-lg" />
@@ -942,7 +942,7 @@ export function GoalsSkeleton() {
       </div>
 
       {/* Featured primary mission card */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-2">
         <div className="mb-8 flex flex-col gap-3">
           <Skeleton width={110} height={12} />
           <Skeleton width={320} height={36} />
@@ -968,7 +968,7 @@ export function GoalsSkeleton() {
       </div>
 
       {/* Supporting goals list */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-3">
         <div className="mb-8 flex flex-col gap-3">
           <Skeleton width={140} height={12} />
           <Skeleton width={280} height={36} />
@@ -992,7 +992,7 @@ export function GoalsSkeleton() {
       </div>
 
       {/* Funding comparison + timeline table */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-4">
         <div className="mb-8 flex flex-col gap-3">
           <Skeleton width={140} height={12} />
           <Skeleton width={340} height={36} />

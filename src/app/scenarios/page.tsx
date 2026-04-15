@@ -370,7 +370,7 @@ export default function ScenarioSimulator() {
       )}
 
       {/* ── Stance selector — 3 tile comparison ────────────────── */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+      <div className="stagger-enter stagger-1 grid grid-cols-1 gap-5 sm:grid-cols-3">
         {enriched.map((plan) => {
           const meta = STANCE_META[plan.stance];
           const isActive = plan.stance === active;
@@ -478,7 +478,7 @@ export default function ScenarioSimulator() {
       </div>
 
       {/* ── Active stance — how your room splits ──────────────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-2">
         <div className="mb-8 flex items-end justify-between gap-6">
           <div className="max-w-2xl">
             <p className="label-meta">Active stance · {STANCE_META[active].label}</p>
@@ -555,7 +555,7 @@ export default function ScenarioSimulator() {
       </div>
 
       {/* ── Explorer — single interactive dimension walkthrough ─ */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-3">
         <div className="mb-10 max-w-2xl">
           <p className="label-meta">Explorer</p>
           <h2 className="display-page mt-2">
@@ -585,7 +585,7 @@ export default function ScenarioSimulator() {
       </div>
 
       {/* ── What-if scenarios ────────────────────────────────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-4">
         <div className="mb-8 flex items-end justify-between">
           <div className="max-w-2xl">
             <p className="label-meta">What-if experiments</p>
@@ -819,7 +819,7 @@ export default function ScenarioSimulator() {
       </div>
 
       {/* ── Key takeaways — flat intelligence ────────────────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-5">
         <div className="mb-8 flex items-end justify-between">
           <div className="max-w-2xl">
             <p className="label-meta">Key takeaways</p>
@@ -883,7 +883,7 @@ export function ScenariosSkeleton() {
   return (
     <>
       {/* 3 stance cards */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+      <div className="stagger-enter stagger-1 grid grid-cols-1 gap-5 sm:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
           <div
             key={i}
@@ -905,7 +905,7 @@ export function ScenariosSkeleton() {
       </div>
 
       {/* Active stance narrative */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-2">
         <div className="mb-8 flex flex-col gap-3">
           <Skeleton width={100} height={12} />
           <Skeleton width={360} height={36} />
@@ -914,7 +914,7 @@ export function ScenariosSkeleton() {
       </div>
 
       {/* What-if scenarios list */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-3">
         <div className="mb-8 flex flex-col gap-3">
           <Skeleton width={120} height={12} />
           <Skeleton width={280} height={36} />

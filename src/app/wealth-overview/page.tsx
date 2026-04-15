@@ -69,15 +69,17 @@ export default function WealthOverview() {
       )}
 
       {/* Hero: net worth + five-year projection */}
-      <NetWorthHero
-        balanceSheet={balanceSheet}
-        netWorthHistory={netWorthHistory}
-        monthlySurplus={cashFlow.surplus}
-        activePlan={activePlan}
-      />
+      <div className="stagger-enter stagger-1">
+        <NetWorthHero
+          balanceSheet={balanceSheet}
+          netWorthHistory={netWorthHistory}
+          monthlySurplus={cashFlow.surplus}
+          activePlan={activePlan}
+        />
+      </div>
 
       {/* ── Section: operating engine ─────────────────────────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-2">
         <div className="mb-10 max-w-2xl">
           <p className="label-meta">This month</p>
           <h2 className="display-page mt-2">Where your month stands.</h2>
@@ -97,7 +99,7 @@ export default function WealthOverview() {
       </div>
 
       {/* ── Section: next moves ─────────────────────────────── */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-3">
         <div className="mb-10 max-w-2xl">
           <p className="label-meta">Your next moves</p>
           <h2 className="display-page mt-2">Go deeper from here.</h2>
@@ -142,7 +144,7 @@ export function WealthOverviewSkeleton() {
   return (
     <>
       {/* Hero: net worth number + chart stage */}
-      <div className="grid grid-cols-12 items-end gap-x-12 gap-y-8">
+      <div className="stagger-enter stagger-1 grid grid-cols-12 items-end gap-x-12 gap-y-8">
         <div className="col-span-12 lg:col-span-5 flex flex-col gap-4">
           <Skeleton width={110} height={12} />
           <Skeleton width="80%" height={76} rounded="rounded-lg" />
@@ -154,7 +156,7 @@ export function WealthOverviewSkeleton() {
       </div>
 
       {/* Where your month stands — 2 columns */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-2">
         <div className="mb-10 flex flex-col gap-3">
           <Skeleton width={90} height={12} />
           <Skeleton width={360} height={36} />
@@ -174,7 +176,7 @@ export function WealthOverviewSkeleton() {
       </div>
 
       {/* Go deeper — 2 feature cards */}
-      <div className="section-breath-lg hairline-top pt-16">
+      <div className="section-breath-lg hairline-top pt-16 stagger-enter stagger-3">
         <div className="mb-10 flex flex-col gap-3">
           <Skeleton width={120} height={12} />
           <Skeleton width={280} height={36} />
