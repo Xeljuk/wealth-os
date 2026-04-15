@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
+import { useToast } from "@/components/ui/Toast";
 import { formatCurrency, formatMonth, formatMonthWithOffset } from "@/lib/format";
 import type { Goal, GoalStatus, PlanStance } from "@/lib/types";
 import GoalFormModal, { type GoalFormValues } from "@/components/goals/GoalFormModal";
@@ -67,17 +68,29 @@ export default function GoalEngine() {
   const {
     snapshot,
     currentStance,
-    goalTrajectories,
+    goalTrajectories: rawTrajectories,
     totalGoalRequired,
     overcommitRatio,
     alphaStatus,
     refreshSnapshot,
   } = useWealth();
 
+  const toast = useToast();
   const [modal, setModal] = useState<ModalState>({ kind: "closed" });
   const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
-  const { goals, cashFlow: cf } = snapshot;
+  const { cashFlow: cf } = snapshot;
+  const goals = useMemo(
+    () => snapshot.goals.filter((g) => !pendingDeleteIds.has(g.id)),
+    [snapshot.goals, pendingDeleteIds],
+  );
+  const goalTrajectories = useMemo(
+    () => rawTrajectories.filter((g) => !pendingDeleteIds.has(g.id)),
+    [rawTrajectories, pendingDeleteIds],
+  );
   const existingPriorities = goals.map((g) => g.priority);
   const canAddGoal = goals.length < 10;
 
@@ -94,6 +107,7 @@ export default function GoalEngine() {
     }
     await refreshSnapshot();
     setModal({ kind: "closed" });
+    toast.success(`Goal "${values.name}" added`);
   }
 
   async function handleUpdate(id: string, values: GoalFormValues) {
@@ -109,21 +123,48 @@ export default function GoalEngine() {
     }
     await refreshSnapshot();
     setModal({ kind: "closed" });
+    toast.success(`Goal "${values.name}" updated`);
   }
 
-  async function handleDelete(goal: Goal) {
-    if (!window.confirm(`Delete goal "${goal.name}"? This cannot be undone.`)) return;
+  function handleDelete(goal: Goal) {
     setActionError(null);
-    try {
-      const res = await fetch(`/api/goals/${goal.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `Request failed (${res.status})`);
-      }
-      await refreshSnapshot();
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : String(err));
-    }
+    // Optimistically hide — delete is committed after the undo window.
+    setPendingDeleteIds((prev) => {
+      const next = new Set(prev);
+      next.add(goal.id);
+      return next;
+    });
+
+    toast.undo({
+      message: `Goal "${goal.name}" deleted`,
+      onUndo: () => {
+        setPendingDeleteIds((prev) => {
+          const next = new Set(prev);
+          next.delete(goal.id);
+          return next;
+        });
+      },
+      onTimeout: async () => {
+        try {
+          const res = await fetch(`/api/goals/${goal.id}`, { method: "DELETE" });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || `Request failed (${res.status})`);
+          }
+          await refreshSnapshot();
+        } catch (err) {
+          toast.error(
+            err instanceof Error ? err.message : "Could not delete goal",
+          );
+        } finally {
+          setPendingDeleteIds((prev) => {
+            const next = new Set(prev);
+            next.delete(goal.id);
+            return next;
+          });
+        }
+      },
+    });
   }
 
   const addGoalButton = (

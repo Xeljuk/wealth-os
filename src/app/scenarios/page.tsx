@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
+import { useToast } from "@/components/ui/Toast";
 import { formatCurrency, formatMonth } from "@/lib/format";
 import type { PlanStance, PlanVariant, Scenario } from "@/lib/types";
 import ScenarioFormModal, {
@@ -194,10 +195,18 @@ export default function ScenarioSimulator() {
     refreshSnapshot,
     alphaStatus,
   } = useWealth();
-  const { plans, scenarios, cashFlow: cf } = snapshot;
+  const toast = useToast();
+  const { plans, scenarios: rawScenarios, cashFlow: cf } = snapshot;
 
   const [modal, setModal] = useState<ScenarioModalState>({ kind: "closed" });
   const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingScenarioIds, setPendingScenarioIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const scenarios = useMemo(
+    () => rawScenarios.filter((s) => !pendingScenarioIds.has(s.id)),
+    [rawScenarios, pendingScenarioIds],
+  );
 
   async function handleCreate(values: ScenarioFormValues) {
     setActionError(null);
@@ -212,6 +221,7 @@ export default function ScenarioSimulator() {
     }
     await refreshSnapshot();
     setModal({ kind: "closed" });
+    toast.success(`Scenario "${values.name}" added`);
   }
 
   async function handleUpdate(id: string, values: ScenarioFormValues) {
@@ -227,20 +237,44 @@ export default function ScenarioSimulator() {
     }
     await refreshSnapshot();
     setModal({ kind: "closed" });
+    toast.success(`Scenario "${values.name}" updated`);
   }
 
-  async function handleDelete(sc: Scenario) {
-    if (!window.confirm(`Delete scenario "${sc.name}"?`)) return;
-    try {
-      const res = await fetch(`/api/scenarios/${sc.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `Request failed (${res.status})`);
-      }
-      await refreshSnapshot();
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : String(err));
-    }
+  function handleDelete(sc: Scenario) {
+    setActionError(null);
+    setPendingScenarioIds((prev) => new Set(prev).add(sc.id));
+    toast.undo({
+      message: `Scenario "${sc.name}" deleted`,
+      onUndo: () => {
+        setPendingScenarioIds((prev) => {
+          const next = new Set(prev);
+          next.delete(sc.id);
+          return next;
+        });
+      },
+      onTimeout: async () => {
+        try {
+          const res = await fetch(`/api/scenarios/${sc.id}`, {
+            method: "DELETE",
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || `Request failed (${res.status})`);
+          }
+          await refreshSnapshot();
+        } catch (err) {
+          toast.error(
+            err instanceof Error ? err.message : "Could not delete scenario",
+          );
+        } finally {
+          setPendingScenarioIds((prev) => {
+            const next = new Set(prev);
+            next.delete(sc.id);
+            return next;
+          });
+        }
+      },
+    });
   }
 
   const enriched = useMemo((): EnrichedPlan[] => {

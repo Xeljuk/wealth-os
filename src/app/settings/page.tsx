@@ -3,7 +3,8 @@
 import { useState, useEffect, FormEvent } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
-import { Loader2, Check, User, DollarSign, Sliders } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
+import { Loader2, User, DollarSign, Sliders } from "lucide-react";
 
 type Stance = "safe" | "balanced" | "aggressive";
 
@@ -45,12 +46,12 @@ const CURRENCY_OPTIONS: CurrencyOption[] = [
 
 export default function SettingsPage() {
   const { snapshot, refreshSnapshot } = useWealth();
+  const toast = useToast();
   const { profile } = snapshot;
 
   const [displayName, setDisplayName] = useState(profile.name);
   const [currencyCode, setCurrencyCode] = useState(profile.currency);
   const [submitting, setSubmitting] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -65,9 +66,12 @@ export default function SettingsPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    setSaved(false);
 
-    if (!displayName.trim()) return setError("Display name is required");
+    if (!displayName.trim()) {
+      setError("Display name is required");
+      toast.error("Display name is required");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -85,10 +89,11 @@ export default function SettingsPage() {
         throw new Error(err.message || `Request failed (${res.status})`);
       }
       await refreshSnapshot();
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
+      toast.success("Profile updated");
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -207,14 +212,6 @@ export default function SettingsPage() {
         >
           <div className="text-xs">
             {error && <span style={{ color: "var(--color-negative)" }}>{error}</span>}
-            {saved && (
-              <span
-                className="inline-flex items-center gap-1.5"
-                style={{ color: "var(--color-positive)" }}
-              >
-                <Check size={12} /> Saved
-              </span>
-            )}
           </div>
           <button
             type="submit"
@@ -235,10 +232,10 @@ export default function SettingsPage() {
 
 function PlanVariantEditor() {
   const { refreshSnapshot } = useWealth();
+  const toast = useToast();
   const [plans, setPlans] = useState<PlanRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingStance, setSavingStance] = useState<Stance | null>(null);
-  const [savedStance, setSavedStance] = useState<Stance | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -266,7 +263,6 @@ function PlanVariantEditor() {
     if (!plan) return;
     setSavingStance(stance);
     setError(null);
-    setSavedStance(null);
     try {
       const res = await fetch("/api/plans", {
         method: "PATCH",
@@ -286,10 +282,11 @@ function PlanVariantEditor() {
         throw new Error(body?.message || `HTTP ${res.status}`);
       }
       await refreshSnapshot();
-      setSavedStance(stance);
-      setTimeout(() => setSavedStance(null), 2500);
+      toast.success(`${STANCE_LABEL[stance]} variant saved`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSavingStance(null);
     }
@@ -429,13 +426,7 @@ function PlanVariantEditor() {
               {savingStance === plan.stance && (
                 <Loader2 size={14} className="animate-spin" />
               )}
-              {savedStance === plan.stance ? (
-                <>
-                  <Check size={14} /> Saved
-                </>
-              ) : (
-                "Save variant"
-              )}
+              Save variant
             </button>
           </div>
         ))}

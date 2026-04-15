@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
+import { useToast } from "@/components/ui/Toast";
 import { formatCurrency, formatMonth } from "@/lib/format";
 import { Loader2, CheckCircle2 } from "lucide-react";
 
@@ -20,7 +21,8 @@ interface HistoryRow {
 
 export default function MonthClosePage() {
   const router = useRouter();
-  const { snapshot } = useWealth();
+  const { snapshot, refreshSnapshot } = useWealth();
+  const toast = useToast();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryRow[]>([]);
@@ -48,9 +50,19 @@ export default function MonthClosePage() {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.message || `HTTP ${res.status}`);
       }
+      if (advance) {
+        await refreshSnapshot();
+      }
+      toast.success(
+        advance
+          ? `${formatMonth(snapshot.period)} closed — next month is open`
+          : `${formatMonth(snapshot.period)} closed`,
+      );
       router.push("/copilot");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not close month.");
+      const msg = e instanceof Error ? e.message : "Could not close month.";
+      setError(msg);
+      toast.error(msg);
       setSaving(false);
     }
   }

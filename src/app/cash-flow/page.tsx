@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
+import { useToast } from "@/components/ui/Toast";
 import { formatCurrency, formatMonth } from "@/lib/format";
 import type { IncomeSource, ExpenseItem } from "@/lib/types";
 import IncomeFormModal, { type IncomeFormValues } from "@/components/cash-flow/IncomeFormModal";
@@ -52,13 +53,29 @@ type ExpenseModalState =
 /* ── Page ──────────────────────────────────────────────────────── */
 export default function CashFlowEngine() {
   const { snapshot, refreshSnapshot } = useWealth();
-  const cf = snapshot.cashFlow;
+  const toast = useToast();
+  const rawCf = snapshot.cashFlow;
   const profile = snapshot.profile;
 
   const [incomeModal, setIncomeModal] = useState<IncomeModalState>({ kind: "closed" });
   const [expenseModal, setExpenseModal] = useState<ExpenseModalState>({ kind: "closed" });
   const [bufferModalOpen, setBufferModalOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingIncomeIds, setPendingIncomeIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [pendingExpenseIds, setPendingExpenseIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  const cf = useMemo(
+    () => ({
+      ...rawCf,
+      incomes: rawCf.incomes.filter((i) => !pendingIncomeIds.has(i.id)),
+      expenses: rawCf.expenses.filter((e) => !pendingExpenseIds.has(e.id)),
+    }),
+    [rawCf, pendingIncomeIds, pendingExpenseIds],
+  );
 
   // ── API handlers ─────────────────────────────────────────────
   async function handleSafetyBufferUpdate(value: number) {
@@ -74,6 +91,7 @@ export default function CashFlowEngine() {
     }
     await refreshSnapshot();
     setBufferModalOpen(false);
+    toast.success("Safety buffer updated");
   }
 
   async function handleIncomeCreate(values: IncomeFormValues) {
@@ -89,6 +107,7 @@ export default function CashFlowEngine() {
     }
     await refreshSnapshot();
     setIncomeModal({ kind: "closed" });
+    toast.success(`Income "${values.name}" added`);
   }
 
   async function handleIncomeUpdate(id: string, values: IncomeFormValues) {
@@ -104,20 +123,42 @@ export default function CashFlowEngine() {
     }
     await refreshSnapshot();
     setIncomeModal({ kind: "closed" });
+    toast.success(`Income "${values.name}" updated`);
   }
 
-  async function handleIncomeDelete(income: IncomeSource) {
-    if (!window.confirm(`Delete income "${income.name}"?`)) return;
-    try {
-      const res = await fetch(`/api/incomes/${income.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `Request failed (${res.status})`);
-      }
-      await refreshSnapshot();
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : String(err));
-    }
+  function handleIncomeDelete(income: IncomeSource) {
+    setActionError(null);
+    setPendingIncomeIds((prev) => new Set(prev).add(income.id));
+    toast.undo({
+      message: `Income "${income.name}" deleted`,
+      onUndo: () => {
+        setPendingIncomeIds((prev) => {
+          const next = new Set(prev);
+          next.delete(income.id);
+          return next;
+        });
+      },
+      onTimeout: async () => {
+        try {
+          const res = await fetch(`/api/incomes/${income.id}`, { method: "DELETE" });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || `Request failed (${res.status})`);
+          }
+          await refreshSnapshot();
+        } catch (err) {
+          toast.error(
+            err instanceof Error ? err.message : "Could not delete income",
+          );
+        } finally {
+          setPendingIncomeIds((prev) => {
+            const next = new Set(prev);
+            next.delete(income.id);
+            return next;
+          });
+        }
+      },
+    });
   }
 
   async function handleExpenseCreate(values: ExpenseFormValues) {
@@ -133,6 +174,7 @@ export default function CashFlowEngine() {
     }
     await refreshSnapshot();
     setExpenseModal({ kind: "closed" });
+    toast.success(`Expense "${values.name}" added`);
   }
 
   async function handleExpenseUpdate(id: string, values: ExpenseFormValues) {
@@ -148,20 +190,44 @@ export default function CashFlowEngine() {
     }
     await refreshSnapshot();
     setExpenseModal({ kind: "closed" });
+    toast.success(`Expense "${values.name}" updated`);
   }
 
-  async function handleExpenseDelete(expense: ExpenseItem) {
-    if (!window.confirm(`Delete expense "${expense.name}"?`)) return;
-    try {
-      const res = await fetch(`/api/expenses/${expense.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `Request failed (${res.status})`);
-      }
-      await refreshSnapshot();
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : String(err));
-    }
+  function handleExpenseDelete(expense: ExpenseItem) {
+    setActionError(null);
+    setPendingExpenseIds((prev) => new Set(prev).add(expense.id));
+    toast.undo({
+      message: `Expense "${expense.name}" deleted`,
+      onUndo: () => {
+        setPendingExpenseIds((prev) => {
+          const next = new Set(prev);
+          next.delete(expense.id);
+          return next;
+        });
+      },
+      onTimeout: async () => {
+        try {
+          const res = await fetch(`/api/expenses/${expense.id}`, {
+            method: "DELETE",
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || `Request failed (${res.status})`);
+          }
+          await refreshSnapshot();
+        } catch (err) {
+          toast.error(
+            err instanceof Error ? err.message : "Could not delete expense",
+          );
+        } finally {
+          setPendingExpenseIds((prev) => {
+            const next = new Set(prev);
+            next.delete(expense.id);
+            return next;
+          });
+        }
+      },
+    });
   }
 
   // ── Derived ──────────────────────────────────────────────────

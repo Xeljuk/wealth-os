@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
+import { useToast } from "@/components/ui/Toast";
 import { formatCurrency, formatMonth } from "@/lib/format";
 import type {
   Asset,
@@ -134,7 +135,8 @@ type LiabilityModalState =
 /* ── Page ──────────────────────────────────────────────────────── */
 export default function AssetBoard() {
   const { snapshot, refreshSnapshot } = useWealth();
-  const { balanceSheet: bs, cashFlow: cf } = snapshot;
+  const toast = useToast();
+  const { balanceSheet: rawBs, cashFlow: cf } = snapshot;
 
   const [assetModal, setAssetModal] = useState<AssetModalState>({ kind: "closed" });
   const [assetError, setAssetError] = useState<string | null>(null);
@@ -142,6 +144,23 @@ export default function AssetBoard() {
     kind: "closed",
   });
   const [liabilityError, setLiabilityError] = useState<string | null>(null);
+  const [pendingAssetIds, setPendingAssetIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [pendingLiabilityIds, setPendingLiabilityIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  const bs = useMemo(
+    () => ({
+      ...rawBs,
+      assets: rawBs.assets.filter((a) => !pendingAssetIds.has(a.id)),
+      liabilities: rawBs.liabilities.filter(
+        (l) => !pendingLiabilityIds.has(l.id),
+      ),
+    }),
+    [rawBs, pendingAssetIds, pendingLiabilityIds],
+  );
 
   // ── Handlers ─────────────────────────────────────────────────
   async function handleAssetCreate(values: AssetFormValues) {
@@ -157,6 +176,7 @@ export default function AssetBoard() {
     }
     await refreshSnapshot();
     setAssetModal({ kind: "closed" });
+    toast.success(`Asset "${values.name}" added`);
   }
 
   async function handleAssetUpdate(id: string, values: AssetFormValues) {
@@ -172,20 +192,42 @@ export default function AssetBoard() {
     }
     await refreshSnapshot();
     setAssetModal({ kind: "closed" });
+    toast.success(`Asset "${values.name}" updated`);
   }
 
-  async function handleAssetDelete(asset: Asset) {
-    if (!window.confirm(`Delete asset "${asset.name}"?`)) return;
-    try {
-      const res = await fetch(`/api/assets/${asset.id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `Request failed (${res.status})`);
-      }
-      await refreshSnapshot();
-    } catch (err) {
-      setAssetError(err instanceof Error ? err.message : String(err));
-    }
+  function handleAssetDelete(asset: Asset) {
+    setAssetError(null);
+    setPendingAssetIds((prev) => new Set(prev).add(asset.id));
+    toast.undo({
+      message: `Asset "${asset.name}" deleted`,
+      onUndo: () => {
+        setPendingAssetIds((prev) => {
+          const next = new Set(prev);
+          next.delete(asset.id);
+          return next;
+        });
+      },
+      onTimeout: async () => {
+        try {
+          const res = await fetch(`/api/assets/${asset.id}`, { method: "DELETE" });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || `Request failed (${res.status})`);
+          }
+          await refreshSnapshot();
+        } catch (err) {
+          toast.error(
+            err instanceof Error ? err.message : "Could not delete asset",
+          );
+        } finally {
+          setPendingAssetIds((prev) => {
+            const next = new Set(prev);
+            next.delete(asset.id);
+            return next;
+          });
+        }
+      },
+    });
   }
 
   async function handleLiabilityCreate(values: LiabilityFormValues) {
@@ -201,6 +243,7 @@ export default function AssetBoard() {
     }
     await refreshSnapshot();
     setLiabilityModal({ kind: "closed" });
+    toast.success(`Liability "${values.name}" added`);
   }
 
   async function handleLiabilityUpdate(id: string, values: LiabilityFormValues) {
@@ -216,22 +259,44 @@ export default function AssetBoard() {
     }
     await refreshSnapshot();
     setLiabilityModal({ kind: "closed" });
+    toast.success(`Liability "${values.name}" updated`);
   }
 
-  async function handleLiabilityDelete(liability: Liability) {
-    if (!window.confirm(`Delete liability "${liability.name}"?`)) return;
-    try {
-      const res = await fetch(`/api/liabilities/${liability.id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `Request failed (${res.status})`);
-      }
-      await refreshSnapshot();
-    } catch (err) {
-      setLiabilityError(err instanceof Error ? err.message : String(err));
-    }
+  function handleLiabilityDelete(liability: Liability) {
+    setLiabilityError(null);
+    setPendingLiabilityIds((prev) => new Set(prev).add(liability.id));
+    toast.undo({
+      message: `Liability "${liability.name}" deleted`,
+      onUndo: () => {
+        setPendingLiabilityIds((prev) => {
+          const next = new Set(prev);
+          next.delete(liability.id);
+          return next;
+        });
+      },
+      onTimeout: async () => {
+        try {
+          const res = await fetch(`/api/liabilities/${liability.id}`, {
+            method: "DELETE",
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || `Request failed (${res.status})`);
+          }
+          await refreshSnapshot();
+        } catch (err) {
+          toast.error(
+            err instanceof Error ? err.message : "Could not delete liability",
+          );
+        } finally {
+          setPendingLiabilityIds((prev) => {
+            const next = new Set(prev);
+            next.delete(liability.id);
+            return next;
+          });
+        }
+      },
+    });
   }
 
   // ── Derived values ───────────────────────────────────────────
