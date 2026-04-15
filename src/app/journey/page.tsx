@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import type { ComponentType } from "react";
+import JourneyAnimation from "@/components/journey/JourneyAnimation";
 
 /* ── Config ───────────────────────────────────────────────────── */
 
@@ -56,6 +57,28 @@ const GOAL_TYPE_EMOJI: Record<string, string> = {
   portfolio_growth: "📈",
   debt_reduction: "⭐",
   custom: "🎯",
+};
+
+/**
+ * Lottie animation paths by node kind.
+ *
+ * Drop new .json files into `public/lottie/` and map them here to
+ * upgrade the scene-card experience. Any path that 404s falls back
+ * gracefully to the emoji-only hero.
+ *
+ * Good sources for free, high-quality animations:
+ *   https://lottiefiles.com/  (look for "marketplace free")
+ *
+ * Currently every kind points at the hand-authored ripple demo — swap
+ * them out for bespoke animations per milestone type when you're ready.
+ */
+const NODE_ANIMATION_PATH: Record<string, string | undefined> = {
+  start: "/lottie/ripple.json",
+  milestone: "/lottie/ripple.json",
+  recommendation: "/lottie/ripple.json",
+  advisory: "/lottie/ripple.json",
+  checkpoint: "/lottie/ripple.json",
+  final: "/lottie/ripple.json",
 };
 
 type NodeKind =
@@ -835,43 +858,29 @@ export default function JourneyPage() {
                 <div
                   className="absolute rounded-full"
                   style={{
-                    width: "168px",
-                    height: "168px",
+                    width: "180px",
+                    height: "180px",
                     backgroundColor: currentNode.accent,
                     opacity: 0.12,
                     animation: "journeyHalo 3s ease-in-out infinite",
                   }}
                 />
-                {/* Decorative ring */}
+                {/* Main disc with gradient hosts the Lottie + emoji */}
                 <div
-                  className="absolute rounded-full"
+                  className="relative flex items-center justify-center overflow-hidden rounded-full"
                   style={{
-                    width: "136px",
-                    height: "136px",
-                    border: `1.5px dashed ${currentNode.accent}`,
-                    opacity: 0.35,
-                  }}
-                />
-                {/* Main disc with gradient */}
-                <div
-                  className="relative flex items-center justify-center rounded-full"
-                  style={{
-                    width: "120px",
-                    height: "120px",
-                    background: `radial-gradient(circle at 35% 30%, #ffffff 0%, ${currentNode.accent}20 45%, ${currentNode.accent}0d 100%)`,
-                    boxShadow: `0 22px 60px -16px ${currentNode.accent}66, inset 0 0 0 1px ${currentNode.accent}33`,
+                    width: "148px",
+                    height: "148px",
+                    background: `radial-gradient(circle at 35% 30%, #ffffff 0%, ${currentNode.accent}18 50%, ${currentNode.accent}06 100%)`,
+                    boxShadow: `0 22px 60px -16px ${currentNode.accent}66, inset 0 0 0 1px ${currentNode.accent}26`,
                   }}
                 >
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      fontSize: "68px",
-                      lineHeight: 1,
-                      filter: `drop-shadow(0 6px 14px ${currentNode.accent}55)`,
-                    }}
-                  >
-                    {currentNode.emoji}
-                  </span>
+                  <JourneyAnimation
+                    animationPath={NODE_ANIMATION_PATH[currentNode.kind]}
+                    emoji={currentNode.emoji}
+                    accent={currentNode.accent}
+                    size={140}
+                  />
                 </div>
               </div>
               <div className="text-center lg:text-left">
