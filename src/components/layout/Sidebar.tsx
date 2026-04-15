@@ -12,16 +12,18 @@ import {
   Route,
   Plus,
   Settings,
+  CheckCircle2,
 } from "lucide-react";
 
 const NAV_ITEMS = [
-  { href: "/wealth-overview", label: "Overview", icon: LayoutDashboard },
+  { href: "/copilot", label: "Copilot", icon: Sparkles },
+  { href: "/month-close", label: "Month close", icon: CheckCircle2 },
   { href: "/journey", label: "Journey", icon: Route },
+  { href: "/wealth-overview", label: "Overview", icon: LayoutDashboard },
   { href: "/cash-flow", label: "Cash Flow", icon: ArrowRightLeft },
   { href: "/assets", label: "Assets", icon: Landmark },
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/scenarios", label: "Scenarios", icon: GitBranch },
-  { href: "/copilot", label: "AI Copilot", icon: Sparkles },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
