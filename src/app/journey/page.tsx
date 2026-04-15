@@ -787,7 +787,6 @@ export default function JourneyPage() {
             backgroundColor: currentZone.bg,
             transition:
               "background-color 0.9s cubic-bezier(0.22, 0.61, 0.36, 1)",
-            minHeight: "520px",
           }}
         >
           {/* Zone atmosphere — subtle dotted backdrop */}
@@ -902,53 +901,231 @@ export default function JourneyPage() {
               </div>
             </div>
 
-            {/* Right: title + narrative + net worth */}
-            <div className="col-span-12 lg:col-span-8">
-              <h3
-                className="font-bold tracking-tight"
-                style={{
-                  color: "var(--color-ink)",
-                  letterSpacing: "-0.025em",
-                  lineHeight: 1.05,
-                  fontSize: "clamp(2.2rem, 3.8vw, 3rem)",
-                }}
-              >
-                {currentNode.label}
-              </h3>
+            {/* Right: title + narrative + stats + context */}
+            <div className="col-span-12 flex flex-col gap-6 lg:col-span-8">
+              <div>
+                <h3
+                  className="font-bold tracking-tight"
+                  style={{
+                    color: "var(--color-ink)",
+                    letterSpacing: "-0.025em",
+                    lineHeight: 1.05,
+                    fontSize: "clamp(2.2rem, 3.8vw, 3rem)",
+                  }}
+                >
+                  {currentNode.label}
+                </h3>
+                <p
+                  className="mt-3 text-[11px] italic"
+                  style={{ color: currentZone.accent }}
+                >
+                  {currentZone.tagline}
+                </p>
+              </div>
+
               <p
-                className="mt-4 text-[16px] leading-relaxed"
+                className="text-[16px] leading-relaxed"
                 style={{ color: "var(--color-text-secondary)" }}
               >
                 {currentNode.sublabel}
               </p>
-              <p
-                className="mt-6 text-[12px] italic"
-                style={{ color: "var(--color-text-muted)" }}
+
+              {/* 3-up stat grid */}
+              <div
+                className="grid grid-cols-3 gap-5 rounded-2xl p-5"
+                style={{
+                  backgroundColor: "var(--color-surface)",
+                  border: `1px solid ${currentNode.accent}1a`,
+                }}
               >
-                {currentZone.tagline}
-              </p>
-              {currentNode.kind !== "checkpoint" &&
-                currentNode.kind !== "advisory" &&
-                currentNode.kind !== "recommendation" && (
-                  <div className="mt-8 flex items-baseline gap-3">
-                    <span
-                      className="text-[10px] font-bold uppercase tracking-[0.14em]"
+                {/* Net worth (or placeholder for advisory/recommendation) */}
+                <div>
+                  <p
+                    className="text-[9px] font-bold uppercase tracking-[0.12em]"
+                    style={{ color: "var(--color-text-muted)" }}
+                  >
+                    Net worth here
+                  </p>
+                  <p
+                    className="mt-1.5 font-bold tabular-nums"
+                    style={{
+                      color: currentNode.accent,
+                      letterSpacing: "-0.015em",
+                      fontSize: "24px",
+                    }}
+                  >
+                    {formatCurrency(currentNode.netWorth, { compact: true })}
+                  </p>
+                </div>
+
+                {/* Gain since today */}
+                {(() => {
+                  const delta = currentNode.netWorth - startNetWorth;
+                  const isGain = delta >= 0;
+                  return (
+                    <div>
+                      <p
+                        className="text-[9px] font-bold uppercase tracking-[0.12em]"
+                        style={{ color: "var(--color-text-muted)" }}
+                      >
+                        {currentIdx === 0 ? "Starting point" : "Since today"}
+                      </p>
+                      <p
+                        className="mt-1.5 font-bold tabular-nums"
+                        style={{
+                          color:
+                            currentIdx === 0
+                              ? "var(--color-text-primary)"
+                              : isGain
+                                ? "var(--color-positive)"
+                                : "var(--color-negative)",
+                          letterSpacing: "-0.015em",
+                          fontSize: "24px",
+                        }}
+                      >
+                        {currentIdx === 0
+                          ? "—"
+                          : `${isGain ? "+" : "−"}${formatCurrency(Math.abs(delta), { compact: true })}`}
+                      </p>
+                    </div>
+                  );
+                })()}
+
+                {/* Time to next step */}
+                {(() => {
+                  const next = nodes[currentIdx + 1];
+                  return (
+                    <div>
+                      <p
+                        className="text-[9px] font-bold uppercase tracking-[0.12em]"
+                        style={{ color: "var(--color-text-muted)" }}
+                      >
+                        {next ? "Next step in" : "Journey complete"}
+                      </p>
+                      <p
+                        className="mt-1.5 font-bold tabular-nums"
+                        style={{
+                          color: "var(--color-text-primary)",
+                          letterSpacing: "-0.015em",
+                          fontSize: "24px",
+                        }}
+                      >
+                        {next
+                          ? `${next.month - currentNode.month} mo`
+                          : "🏁"}
+                      </p>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Prev/Next context strip */}
+              <div
+                className="grid grid-cols-2 gap-3 border-t pt-5"
+                style={{ borderColor: `${currentNode.accent}1a` }}
+              >
+                {/* Previous */}
+                {currentIdx > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => goto(currentIdx - 1)}
+                    className="flex items-start gap-2 rounded-lg p-2 text-left transition-opacity hover:opacity-80"
+                  >
+                    <ChevronLeft
+                      size={14}
+                      className="mt-0.5 shrink-0"
+                      style={{ color: "var(--color-text-muted)" }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className="text-[9px] font-bold uppercase tracking-[0.12em]"
+                        style={{ color: "var(--color-text-muted)" }}
+                      >
+                        Coming from
+                      </p>
+                      <p
+                        className="mt-0.5 truncate text-[12px] font-semibold"
+                        style={{ color: "var(--color-text-primary)" }}
+                      >
+                        <span
+                          className="mr-1"
+                          aria-hidden="true"
+                          style={{ fontSize: "14px" }}
+                        >
+                          {nodes[currentIdx - 1]!.emoji}
+                        </span>
+                        {nodes[currentIdx - 1]!.label}
+                      </p>
+                    </div>
+                  </button>
+                ) : (
+                  <div className="rounded-lg p-2">
+                    <p
+                      className="text-[9px] font-bold uppercase tracking-[0.12em]"
                       style={{ color: "var(--color-text-muted)" }}
                     >
-                      Net worth at this moment
-                    </span>
-                    <span
-                      className="font-bold tabular-nums"
-                      style={{
-                        color: currentNode.accent,
-                        letterSpacing: "-0.02em",
-                        fontSize: "32px",
-                      }}
+                      Coming from
+                    </p>
+                    <p
+                      className="mt-0.5 text-[12px] italic"
+                      style={{ color: "var(--color-text-muted)" }}
                     >
-                      {formatCurrency(currentNode.netWorth, { compact: true })}
-                    </span>
+                      the starting line
+                    </p>
                   </div>
                 )}
+
+                {/* Next */}
+                {currentIdx < nodes.length - 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => goto(currentIdx + 1)}
+                    className="flex items-start justify-end gap-2 rounded-lg p-2 text-right transition-opacity hover:opacity-80"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className="text-[9px] font-bold uppercase tracking-[0.12em]"
+                        style={{ color: "var(--color-text-muted)" }}
+                      >
+                        Leading to
+                      </p>
+                      <p
+                        className="mt-0.5 truncate text-[12px] font-semibold"
+                        style={{ color: "var(--color-text-primary)" }}
+                      >
+                        {nodes[currentIdx + 1]!.label}
+                        <span
+                          className="ml-1"
+                          aria-hidden="true"
+                          style={{ fontSize: "14px" }}
+                        >
+                          {nodes[currentIdx + 1]!.emoji}
+                        </span>
+                      </p>
+                    </div>
+                    <ChevronRight
+                      size={14}
+                      className="mt-0.5 shrink-0"
+                      style={{ color: "var(--color-text-muted)" }}
+                    />
+                  </button>
+                ) : (
+                  <div className="rounded-lg p-2 text-right">
+                    <p
+                      className="text-[9px] font-bold uppercase tracking-[0.12em]"
+                      style={{ color: "var(--color-text-muted)" }}
+                    >
+                      Leading to
+                    </p>
+                    <p
+                      className="mt-0.5 text-[12px] italic"
+                      style={{ color: "var(--color-text-muted)" }}
+                    >
+                      the summit
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
