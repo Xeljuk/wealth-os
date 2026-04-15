@@ -11,10 +11,10 @@ export default function Home() {
   useEffect(() => {
     if (isLoading) return;
     if (!alphaStatus.hasCustomData && alphaStatus.isDemoMode) {
-      router.replace("/alpha-setup");
+      router.replace("/onboarding");
       return;
     }
-    router.replace("/wealth-overview");
+    router.replace("/copilot");
   }, [isLoading, alphaStatus, router]);
 
   return null;
