@@ -144,7 +144,7 @@ export default function AlphaSetupPage() {
 
     const goals = form.goals.filter((g) => g.name.trim().length > 0);
     if (goals.length === 0) return "Add at least one goal.";
-    if (goals.length > 3) return "You can provide up to 3 goals.";
+    if (goals.length > 10) return "You can provide up to 10 goals.";
 
     for (const g of goals) {
       if (!/^\d{4}-\d{2}$/.test(g.targetMonth)) {
@@ -192,7 +192,7 @@ export default function AlphaSetupPage() {
             priority: i + 1,
           }))
           .filter((g) => g.name.length > 0)
-          .slice(0, 3);
+          .slice(0, 10);
 
         payload = {
           mode: "custom",
@@ -352,7 +352,7 @@ export default function AlphaSetupPage() {
               />
             </FormBlock>
 
-            <FormBlock title="Goals (up to 3)">
+            <FormBlock title="Goals (up to 10)">
               {form.goals.map((g, i) => (
                 <div
                   key={i}

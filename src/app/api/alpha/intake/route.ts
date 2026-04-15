@@ -65,8 +65,8 @@ function parsePayload(body: unknown): { ok: true; value: AlphaIntakePayload } | 
     return { ok: false, message: "All numeric intake fields must be non-negative numbers" };
   }
 
-  if (goals.length === 0 || goals.length > 3) {
-    return { ok: false, message: "Provide 1 to 3 goals" };
+  if (goals.length === 0 || goals.length > 10) {
+    return { ok: false, message: "Provide 1 to 10 goals" };
   }
 
   const parsedGoals = goals.map((g, idx) => {

@@ -79,7 +79,7 @@ export default function GoalEngine() {
 
   const { goals, cashFlow: cf } = snapshot;
   const existingPriorities = goals.map((g) => g.priority);
-  const canAddGoal = goals.length < 3;
+  const canAddGoal = goals.length < 10;
 
   async function handleCreate(values: GoalFormValues) {
     setActionError(null);
@@ -131,7 +131,7 @@ export default function GoalEngine() {
       type="button"
       onClick={() => setModal({ kind: "create" })}
       disabled={!canAddGoal}
-      title={canAddGoal ? "Add a new goal" : "Maximum of 3 goals reached"}
+      title={canAddGoal ? "Add a new goal" : "Maximum of 10 goals reached"}
       className="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
       style={{ backgroundColor: "var(--color-accent)", color: "#fff" }}
     >
