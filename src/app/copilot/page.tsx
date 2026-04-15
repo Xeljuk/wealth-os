@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, Fragment } from "react";
+import { useState, useRef, useEffect, Fragment } from "react";
 import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
 import { formatCurrency, formatMonth } from "@/lib/format";
@@ -82,6 +82,31 @@ const NEXT_MOVES: { label: string; description: string; href: string }[] = [
   },
 ];
 
+function DiffStat({
+  label,
+  delta,
+  color,
+  arrow,
+}: {
+  label: string;
+  delta: number;
+  color: string;
+  arrow: string;
+}) {
+  const abs = Math.abs(delta);
+  return (
+    <div>
+      <p className="label-meta">{label} · vs last close</p>
+      <p
+        className="mt-2 text-[22px] font-bold tabular-nums"
+        style={{ color, letterSpacing: "-0.02em" }}
+      >
+        {arrow} {abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+      </p>
+    </div>
+  );
+}
+
 /* ── Markdown renderer for **bold** headings + paragraphs ─────── */
 function renderMarkdown(text: string) {
   const blocks = text.split(/\n\n+/);
@@ -124,7 +149,17 @@ export default function CopilotPage() {
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [customInput, setCustomInput] = useState<string>("");
+  const [history, setHistory] = useState<
+    { period: string; net_worth: number; allocatable_surplus: number; total_debt_service: number }[]
+  >([]);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    fetch("/api/snapshot/history", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => setHistory(data.rows ?? []))
+      .catch(() => setHistory([]));
+  }, []);
 
   const {
     snapshot,
@@ -261,6 +296,27 @@ export default function CopilotPage() {
       title="Your wealth strategist, on call."
       subtitle={`Synthesises ${profile.name}'s current model — balance sheet, cash flow, goals, scenarios — into plain-language guidance. Ground every answer in your real numbers.`}
     >
+      {/* ── Month-over-month diff ────────────────────────────── */}
+      {history.length >= 2 && (() => {
+        const [curr, prev] = history;
+        const dNet = curr!.net_worth - prev!.net_worth;
+        const dSurplus = curr!.allocatable_surplus - prev!.allocatable_surplus;
+        const dDebt = curr!.total_debt_service - prev!.total_debt_service;
+        const arrow = (n: number) => (n > 0 ? "↑" : n < 0 ? "↓" : "·");
+        const good = (n: number) =>
+          n > 0 ? "var(--color-accent)" : n < 0 ? "var(--color-negative)" : "var(--color-text-muted)";
+        const badInv = (n: number) =>
+          n < 0 ? "var(--color-accent)" : n > 0 ? "var(--color-negative)" : "var(--color-text-muted)";
+        return (
+          <div className="mb-10 grid grid-cols-1 gap-6 rounded-2xl px-7 py-6 md:grid-cols-3"
+            style={{ backgroundColor: "var(--color-vellum-deep)" }}>
+            <DiffStat label="Net worth" delta={dNet} color={good(dNet)} arrow={arrow(dNet)} />
+            <DiffStat label="Allocatable" delta={dSurplus} color={good(dSurplus)} arrow={arrow(dSurplus)} />
+            <DiffStat label="Debt service" delta={dDebt} color={badInv(dDebt)} arrow={arrow(dDebt)} />
+          </div>
+        );
+      })()}
+
       {/* ── Narrative strip (hero) ────────────────────────────── */}
       {!canNarrate || !featured || !ft ? (
         <div
@@ -274,11 +330,11 @@ export default function CopilotPage() {
             Not enough data for a synthesised narrative yet. Add{" "}
             {alphaStatus.missing.join(", ") || "your model inputs"} in{" "}
             <Link
-              href="/alpha-setup"
+              href="/onboarding"
               className="font-semibold"
               style={{ color: "var(--color-accent)" }}
             >
-              Alpha Setup
+              onboarding
             </Link>
             .
           </p>
