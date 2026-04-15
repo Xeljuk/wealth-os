@@ -6,6 +6,7 @@ import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
 import type { AlphaIntakePayload } from "@/lib/alpha-intake";
 import { formatCurrency } from "@/lib/format";
+import { Sparkles, PencilLine, Loader2, RotateCcw } from "lucide-react";
 
 type Mode = "demo" | "custom";
 
@@ -72,6 +73,7 @@ function toNumber(v: string): number {
   return Number.isFinite(n) ? n : NaN;
 }
 
+/* ── Page ──────────────────────────────────────────────────────── */
 export default function AlphaSetupPage() {
   const router = useRouter();
   const { refreshSnapshot } = useWealth();
@@ -83,7 +85,7 @@ export default function AlphaSetupPage() {
 
   const monthlyInflow = useMemo(
     () => toNumber(form.salary) + toNumber(form.otherRecurringIncome),
-    [form.salary, form.otherRecurringIncome]
+    [form.salary, form.otherRecurringIncome],
   );
 
   const totalAssets = useMemo(
@@ -92,17 +94,26 @@ export default function AlphaSetupPage() {
       toNumber(form.investments) +
       toNumber(form.property) +
       toNumber(form.vehicle),
-    [form.cash, form.investments, form.property, form.vehicle]
+    [form.cash, form.investments, form.property, form.vehicle],
   );
 
   const totalLiabilities = useMemo(
     () =>
-      toNumber(form.installmentLiabilities) + toNumber(form.revolvingLiabilities),
-    [form.installmentLiabilities, form.revolvingLiabilities]
+      toNumber(form.installmentLiabilities) +
+      toNumber(form.revolvingLiabilities),
+    [form.installmentLiabilities, form.revolvingLiabilities],
   );
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function updateGoal(i: number, patch: Partial<GoalForm>) {
+    setForm((prev) => {
+      const next = [...prev.goals];
+      next[i] = { ...next[i]!, ...patch };
+      return { ...prev, goals: next };
+    });
   }
 
   function validateCustom(): string | null {
@@ -131,10 +142,7 @@ export default function AlphaSetupPage() {
       return "Salary must be greater than zero.";
     }
 
-    const goals = form.goals
-      .map((g, i) => ({ ...g, priority: i + 1 }))
-      .filter((g) => g.name.trim().length > 0);
-
+    const goals = form.goals.filter((g) => g.name.trim().length > 0);
     if (goals.length === 0) return "Add at least one goal.";
     if (goals.length > 3) return "You can provide up to 3 goals.";
 
@@ -144,7 +152,12 @@ export default function AlphaSetupPage() {
       }
       const target = toNumber(g.targetAmount);
       const current = toNumber(g.currentAmount);
-      if (!Number.isFinite(target) || !Number.isFinite(current) || target < 0 || current < 0) {
+      if (
+        !Number.isFinite(target) ||
+        !Number.isFinite(current) ||
+        target < 0 ||
+        current < 0
+      ) {
         return `Goal "${g.name}" needs valid non-negative amounts.`;
       }
       if (target < current) {
@@ -221,10 +234,10 @@ export default function AlphaSetupPage() {
       await refreshSnapshot();
       setMessage(
         modeToSave === "demo"
-          ? "Demo profile loaded. Redirecting to Wealth Overview..."
-          : "Your self-reported inputs were saved. Redirecting to Wealth Overview..."
+          ? "Demo profile loaded. Redirecting to Wealth Overview…"
+          : "Your self-reported inputs were saved. Redirecting to Wealth Overview…",
       );
-      setTimeout(() => router.push("/wealth-overview"), 400);
+      setTimeout(() => router.push("/wealth-overview"), 500);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save intake data.");
     } finally {
@@ -234,224 +247,344 @@ export default function AlphaSetupPage() {
 
   return (
     <PageShell
-      title="Alpha Setup"
-      subtitle="Private alpha setup: use demo data or enter your own core numbers."
-      period="Private Alpha"
+      eyebrow="Alpha Setup · Private Alpha"
+      title="Seed your financial model."
+      subtitle="Load a demo profile to explore the product, or enter your own core numbers for a personalised view. You can change any of this later from the individual entity pages."
     >
-      <div className="mt-2 flex flex-col gap-6">
-        <section
-          className="atmospheric-shadow rounded-2xl p-6"
-          style={{ backgroundColor: "var(--color-surface)" }}
-        >
-          <p className="label-meta" style={{ color: "var(--color-text-muted)" }}>
-            Setup Mode
-          </p>
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <button
-              onClick={() => setMode("demo")}
-              className="rounded-xl p-4 text-left transition-all"
-              style={{
-                backgroundColor:
-                  mode === "demo"
-                    ? "var(--color-accent-light)"
-                    : "var(--color-surface-low)",
-              }}
-            >
-              <p
-                className="text-sm font-semibold"
-                style={{
-                  color:
-                    mode === "demo"
-                      ? "var(--color-accent)"
-                      : "var(--color-text-primary)",
-                }}
-              >
-                Try demo data
-              </p>
-              <p
-                className="mt-1 text-xs leading-relaxed"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
-                Use a sample profile to explore the product before entering your own values.
-              </p>
-            </button>
-            <button
-              onClick={() => setMode("custom")}
-              className="rounded-xl p-4 text-left transition-all"
-              style={{
-                backgroundColor:
-                  mode === "custom"
-                    ? "var(--color-accent-light)"
-                    : "var(--color-surface-low)",
-              }}
-            >
-              <p
-                className="text-sm font-semibold"
-                style={{
-                  color:
-                    mode === "custom"
-                      ? "var(--color-accent)"
-                      : "var(--color-text-primary)",
-                }}
-              >
-                Use my numbers
-              </p>
-              <p
-                className="mt-1 text-xs leading-relaxed"
-                style={{ color: "var(--color-text-secondary)" }}
-              >
-                Enter a compact, self-reported snapshot to personalize your planning view.
-              </p>
-            </button>
+      {/* ── Mode toggle ────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <ModeTile
+          active={mode === "demo"}
+          onClick={() => setMode("demo")}
+          icon={<Sparkles size={18} />}
+          title="Try a demo profile"
+          description="Sample values for Emre — explore balance sheet, cash flow, goals, and scenarios without entering anything."
+        />
+        <ModeTile
+          active={mode === "custom"}
+          onClick={() => setMode("custom")}
+          icon={<PencilLine size={18} />}
+          title="Use my own numbers"
+          description="A compact self-reported snapshot seeds your real model. You can refine individual entries on the other pages."
+        />
+      </div>
+
+      {/* ── Custom form ───────────────────────────────────────── */}
+      {mode === "custom" && (
+        <div className="section-breath-lg hairline-top pt-16">
+          <div className="mb-10 max-w-2xl">
+            <p className="label-meta">Your numbers</p>
+            <h2 className="display-page mt-2">The bones of your model.</h2>
+            <p className="lead-text mt-4">
+              Four blocks cover everything: monthly engine, balance sheet,
+              liabilities, and goals. Keep it approximate — you can refine it
+              after setup.
+            </p>
           </div>
-        </section>
 
-        {mode === "custom" && (
-          <section
-            className="atmospheric-shadow rounded-2xl p-6"
-            style={{ backgroundColor: "var(--color-surface)" }}
-          >
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <Block title="Monthly Engine">
-                <NumberField label="Salary / month" value={form.salary} onChange={(v) => setField("salary", v)} />
-                <NumberField label="Other recurring income / month" value={form.otherRecurringIncome} onChange={(v) => setField("otherRecurringIncome", v)} />
-                <NumberField label="Fixed expenses / month" value={form.fixedExpenses} onChange={(v) => setField("fixedExpenses", v)} />
-                <NumberField label="Variable expenses / month" value={form.variableExpenses} onChange={(v) => setField("variableExpenses", v)} />
-                <NumberField label="Debt service / month" value={form.debtService} onChange={(v) => setField("debtService", v)} />
-                <NumberField label="Safety buffer / month" value={form.safetyBuffer} onChange={(v) => setField("safetyBuffer", v)} />
-              </Block>
+          <div className="grid grid-cols-1 gap-x-12 gap-y-14 lg:grid-cols-2">
+            <FormBlock title="Monthly engine">
+              <NumberField
+                label="Salary"
+                value={form.salary}
+                onChange={(v) => setField("salary", v)}
+              />
+              <NumberField
+                label="Other recurring income"
+                value={form.otherRecurringIncome}
+                onChange={(v) => setField("otherRecurringIncome", v)}
+              />
+              <NumberField
+                label="Fixed expenses"
+                value={form.fixedExpenses}
+                onChange={(v) => setField("fixedExpenses", v)}
+              />
+              <NumberField
+                label="Variable expenses"
+                value={form.variableExpenses}
+                onChange={(v) => setField("variableExpenses", v)}
+              />
+              <NumberField
+                label="Debt service"
+                value={form.debtService}
+                onChange={(v) => setField("debtService", v)}
+              />
+              <NumberField
+                label="Safety buffer"
+                value={form.safetyBuffer}
+                onChange={(v) => setField("safetyBuffer", v)}
+              />
+            </FormBlock>
 
-              <Block title="Balance Sheet">
-                <NumberField label="Cash" value={form.cash} onChange={(v) => setField("cash", v)} />
-                <NumberField label="Investments" value={form.investments} onChange={(v) => setField("investments", v)} />
-                <NumberField label="Property" value={form.property} onChange={(v) => setField("property", v)} />
-                <NumberField label="Vehicle" value={form.vehicle} onChange={(v) => setField("vehicle", v)} />
-              </Block>
+            <FormBlock title="Balance sheet">
+              <NumberField
+                label="Cash"
+                value={form.cash}
+                onChange={(v) => setField("cash", v)}
+              />
+              <NumberField
+                label="Investments"
+                value={form.investments}
+                onChange={(v) => setField("investments", v)}
+              />
+              <NumberField
+                label="Property"
+                value={form.property}
+                onChange={(v) => setField("property", v)}
+              />
+              <NumberField
+                label="Vehicle"
+                value={form.vehicle}
+                onChange={(v) => setField("vehicle", v)}
+              />
+            </FormBlock>
 
-              <Block title="Liabilities">
-                <NumberField label="Installment liabilities" value={form.installmentLiabilities} onChange={(v) => setField("installmentLiabilities", v)} />
-                <NumberField label="Revolving liabilities" value={form.revolvingLiabilities} onChange={(v) => setField("revolvingLiabilities", v)} />
-              </Block>
+            <FormBlock title="Liabilities">
+              <NumberField
+                label="Installment loans"
+                value={form.installmentLiabilities}
+                onChange={(v) => setField("installmentLiabilities", v)}
+              />
+              <NumberField
+                label="Revolving credit"
+                value={form.revolvingLiabilities}
+                onChange={(v) => setField("revolvingLiabilities", v)}
+              />
+            </FormBlock>
 
-              <Block title="Goals (max 3)">
-                {form.goals.map((g, i) => (
-                  <div key={i} className="rounded-lg p-3" style={{ backgroundColor: "var(--color-surface-low)" }}>
-                    <p className="label-meta" style={{ color: "var(--color-text-muted)" }}>
-                      Goal {i + 1} (priority {i + 1})
-                    </p>
-                    <TextField
-                      label="Name"
-                      value={g.name}
-                      onChange={(v) =>
-                        setForm((prev) => {
-                          const next = [...prev.goals];
-                          next[i] = { ...next[i], name: v };
-                          return { ...prev, goals: next };
-                        })
-                      }
+            <FormBlock title="Goals (up to 3)">
+              {form.goals.map((g, i) => (
+                <div
+                  key={i}
+                  className="flex flex-col gap-3 rounded-xl p-4"
+                  style={{ backgroundColor: "var(--color-surface-low)" }}
+                >
+                  <p className="label-meta">Priority {i + 1}</p>
+                  <TextField
+                    label="Name"
+                    value={g.name}
+                    onChange={(v) => updateGoal(i, { name: v })}
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <NumberField
+                      label="Target"
+                      value={g.targetAmount}
+                      onChange={(v) => updateGoal(i, { targetAmount: v })}
                     />
-                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <NumberField
-                        label="Target amount"
-                        value={g.targetAmount}
-                        onChange={(v) =>
-                          setForm((prev) => {
-                            const next = [...prev.goals];
-                            next[i] = { ...next[i], targetAmount: v };
-                            return { ...prev, goals: next };
-                          })
-                        }
-                      />
-                      <NumberField
-                        label="Current amount"
-                        value={g.currentAmount}
-                        onChange={(v) =>
-                          setForm((prev) => {
-                            const next = [...prev.goals];
-                            next[i] = { ...next[i], currentAmount: v };
-                            return { ...prev, goals: next };
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="mt-2">
-                      <label className="label-meta" style={{ color: "var(--color-text-muted)" }}>
-                        Target month
-                      </label>
-                      <input
-                        type="month"
-                        value={g.targetMonth}
-                        onChange={(e) =>
-                          setForm((prev) => {
-                            const next = [...prev.goals];
-                            next[i] = { ...next[i], targetMonth: e.target.value };
-                            return { ...prev, goals: next };
-                          })
-                        }
-                        className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none"
-                        style={{ backgroundColor: "var(--color-surface)", color: "var(--color-text-primary)" }}
-                      />
-                    </div>
+                    <NumberField
+                      label="Current"
+                      value={g.currentAmount}
+                      onChange={(v) => updateGoal(i, { currentAmount: v })}
+                    />
                   </div>
-                ))}
-              </Block>
-            </div>
-          </section>
-        )}
-
-        <section
-          className="atmospheric-shadow rounded-2xl p-6"
-          style={{ backgroundColor: "var(--color-surface)" }}
-        >
-          <p className="text-xs leading-relaxed" style={{ color: "var(--color-text-muted)" }}>
-            Private alpha note: your inputs are stored for prototype testing, and insights are generated from your current self-reported values. This product supports planning and does not provide financial advice.
-          </p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <MiniStat label="Monthly inflow" value={Number.isFinite(monthlyInflow) ? formatCurrency(monthlyInflow) : "—"} />
-            <MiniStat label="Total assets" value={Number.isFinite(totalAssets) ? formatCurrency(totalAssets) : "—"} />
-            <MiniStat label="Total liabilities" value={Number.isFinite(totalLiabilities) ? formatCurrency(totalLiabilities) : "—"} />
+                  <div>
+                    <label
+                      className="text-[10px] font-semibold uppercase tracking-[0.14em]"
+                      style={{ color: "var(--color-text-muted)" }}
+                    >
+                      Target month
+                    </label>
+                    <input
+                      type="month"
+                      value={g.targetMonth}
+                      onChange={(e) =>
+                        updateGoal(i, { targetMonth: e.target.value })
+                      }
+                      className="mt-1 w-full rounded-lg px-3 py-2.5 text-sm outline-none"
+                      style={{
+                        backgroundColor: "var(--color-surface)",
+                        color: "var(--color-text-primary)",
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </FormBlock>
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center gap-3">
+          {/* Live-computed stats */}
+          <div
+            className="section-breath-lg grid grid-cols-1 gap-6 rounded-2xl px-7 py-6 md:grid-cols-3"
+            style={{ backgroundColor: "var(--color-vellum-deep)" }}
+          >
+            <LiveStat
+              label="Monthly inflow"
+              value={
+                Number.isFinite(monthlyInflow)
+                  ? formatCurrency(monthlyInflow)
+                  : "—"
+              }
+            />
+            <LiveStat
+              label="Total assets"
+              value={
+                Number.isFinite(totalAssets) ? formatCurrency(totalAssets) : "—"
+              }
+            />
+            <LiveStat
+              label="Total liabilities"
+              value={
+                Number.isFinite(totalLiabilities)
+                  ? formatCurrency(totalLiabilities)
+                  : "—"
+              }
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── Action row ───────────────────────────────────────── */}
+      <div className="section-breath-lg hairline-top pt-16">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-3">
             <button
+              type="button"
               onClick={() => save(mode)}
               disabled={saving}
-              className="signature-gradient rounded-xl px-5 py-2.5 text-[13px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+              className="flex items-center gap-2 rounded-xl px-6 py-3 text-[14px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+              style={{
+                backgroundColor: "var(--color-accent)",
+                boxShadow: "0 14px 36px -16px rgba(69,100,94,0.4)",
+              }}
             >
-              {saving ? "Saving..." : mode === "demo" ? "Load Demo Snapshot" : "Save My Numbers"}
+              {saving && <Loader2 size={14} className="animate-spin" />}
+              {saving
+                ? "Saving…"
+                : mode === "demo"
+                  ? "Load demo snapshot"
+                  : "Save my numbers"}
             </button>
-            <button
-              onClick={() => setForm(DEFAULT_FORM)}
-              disabled={saving}
-              className="rounded-xl px-4 py-2.5 text-[13px] font-semibold"
-              style={{ backgroundColor: "var(--color-surface-low)", color: "var(--color-text-secondary)" }}
-            >
-              Reset Form
-            </button>
+            {mode === "custom" && (
+              <button
+                type="button"
+                onClick={() => setForm(DEFAULT_FORM)}
+                disabled={saving}
+                className="inline-flex items-center gap-2 rounded-xl px-4 py-3 text-[13px] font-semibold transition-opacity hover:opacity-80"
+                style={{
+                  backgroundColor: "var(--color-surface-low)",
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                <RotateCcw size={13} />
+                Reset form
+              </button>
+            )}
           </div>
+
           {error && (
-            <p className="mt-3 text-sm" style={{ color: "var(--color-negative)" }}>
+            <p
+              className="text-[13px]"
+              style={{ color: "var(--color-negative)" }}
+            >
               {error}
             </p>
           )}
           {message && (
-            <p className="mt-3 text-sm" style={{ color: "var(--color-positive)" }}>
+            <p
+              className="text-[13px]"
+              style={{ color: "var(--color-positive)" }}
+            >
               {message}
             </p>
           )}
-        </section>
+
+          <p
+            className="mt-2 max-w-2xl text-[11px] leading-relaxed"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            Private alpha note: your inputs are stored locally for prototype
+            testing. Insights are generated from your current self-reported
+            values. This product supports planning and does not provide
+            financial advice.
+          </p>
+        </div>
       </div>
     </PageShell>
   );
 }
 
-function Block({ title, children }: { title: string; children: ReactNode }) {
+/* ── Helpers ──────────────────────────────────────────────────── */
+
+function ModeTile({
+  active,
+  onClick,
+  icon,
+  title,
+  description,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: ReactNode;
+  title: string;
+  description: string;
+}) {
   return (
-    <div>
-      <p className="label-meta" style={{ color: "var(--color-text-muted)" }}>
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex flex-col gap-4 rounded-2xl p-7 text-left transition-all duration-300 hover:-translate-y-0.5"
+      style={{
+        backgroundColor: active
+          ? "var(--color-surface)"
+          : "var(--color-vellum-deep)",
+        boxShadow: active
+          ? "0 18px 48px -22px rgba(69,100,94,0.3)"
+          : "none",
+        outline: active
+          ? "2px solid var(--color-accent)"
+          : "2px solid transparent",
+      }}
+    >
+      <span
+        className="flex h-11 w-11 items-center justify-center rounded-xl"
+        style={{
+          backgroundColor: active
+            ? "var(--color-accent)"
+            : "var(--color-surface)",
+          color: active ? "#fff" : "var(--color-accent)",
+        }}
+      >
+        {icon}
+      </span>
+      <div>
+        <h3
+          className="text-[18px] font-semibold tracking-tight"
+          style={{
+            color: active
+              ? "var(--color-accent)"
+              : "var(--color-text-primary)",
+            letterSpacing: "-0.015em",
+          }}
+        >
+          {title}
+        </h3>
+        <p
+          className="mt-2 text-[13px] leading-relaxed"
+          style={{ color: "var(--color-text-secondary)" }}
+        >
+          {description}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+function FormBlock({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-5">
+      <h3
+        className="text-[16px] font-semibold uppercase tracking-[0.12em]"
+        style={{ color: "var(--color-text-muted)" }}
+      >
         {title}
-      </p>
-      <div className="mt-3 flex flex-col gap-2">{children}</div>
+      </h3>
+      <div className="flex flex-col gap-4">{children}</div>
     </div>
   );
 }
@@ -467,7 +600,10 @@ function NumberField({
 }) {
   return (
     <div>
-      <label className="label-meta" style={{ color: "var(--color-text-muted)" }}>
+      <label
+        className="text-[10px] font-semibold uppercase tracking-[0.14em]"
+        style={{ color: "var(--color-text-muted)" }}
+      >
         {label}
       </label>
       <input
@@ -476,8 +612,11 @@ function NumberField({
         step={1}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none"
-        style={{ backgroundColor: "var(--color-surface-low)", color: "var(--color-text-primary)" }}
+        className="mt-1 w-full rounded-lg px-3 py-2.5 text-sm outline-none"
+        style={{
+          backgroundColor: "var(--color-surface-low)",
+          color: "var(--color-text-primary)",
+        }}
       />
     </div>
   );
@@ -493,28 +632,40 @@ function TextField({
   onChange: (v: string) => void;
 }) {
   return (
-    <div className="mt-2">
-      <label className="label-meta" style={{ color: "var(--color-text-muted)" }}>
+    <div>
+      <label
+        className="text-[10px] font-semibold uppercase tracking-[0.14em]"
+        style={{ color: "var(--color-text-muted)" }}
+      >
         {label}
       </label>
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none"
-        style={{ backgroundColor: "var(--color-surface)", color: "var(--color-text-primary)" }}
+        className="mt-1 w-full rounded-lg px-3 py-2.5 text-sm outline-none"
+        style={{
+          backgroundColor: "var(--color-surface)",
+          color: "var(--color-text-primary)",
+        }}
       />
     </div>
   );
 }
 
-function MiniStat({ label, value }: { label: string; value: string }) {
+function LiveStat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="label-meta" style={{ color: "var(--color-text-muted)" }}>
-        {label}
+      <p className="label-meta">{label}</p>
+      <p
+        className="mt-2 text-[22px] font-bold tabular-nums"
+        style={{
+          color: "var(--color-text-primary)",
+          letterSpacing: "-0.02em",
+        }}
+      >
+        {value}
       </p>
-      <p className="stat-value">{value}</p>
     </div>
   );
 }
