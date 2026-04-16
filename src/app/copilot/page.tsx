@@ -5,6 +5,7 @@ import PageShell from "@/components/layout/PageShell";
 import { useWealth } from "@/lib/wealth-context";
 import { Skeleton, useDelayedLoading } from "@/components/ui/Skeleton";
 import SetupChecklist from "@/components/copilot/SetupChecklist";
+import StrategyCard from "@/components/copilot/StrategyCard";
 import { formatCurrency, formatMonth } from "@/lib/format";
 import type { PlanStance } from "@/lib/types";
 import Link from "next/link";
@@ -367,6 +368,16 @@ export default function CopilotPage() {
           hasClosedMonth: history.length > 0,
         }}
       />
+
+      {/* ── Live strategy card — primary goal plan ────────────── */}
+      {featured && ft && (
+        <StrategyCard
+          goal={ft}
+          allocatable={cf.allocatableSurplus}
+          stance={currentStance}
+          period={snapshot.period}
+        />
+      )}
 
       {/* ── Stat strip — absolute on first look, deltas after ──── */}
       {history.length >= 2 ? (

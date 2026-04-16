@@ -58,56 +58,56 @@ function buildItems(s: SetupSignal, visitedScenarios: boolean, visitedJourney: b
     {
       key: "income",
       label: "Income added",
-      hint: "Salary, other recurring — from setup.",
+      hint: "Copilot now knows your earning capacity.",
       href: "/cash-flow",
       done: s.hasIncome,
     },
     {
       key: "expenses",
       label: "Expenses added",
-      hint: "Fixed and variable spend — from setup.",
+      hint: "Copilot can compute your allocatable surplus.",
       href: "/cash-flow",
       done: s.hasExpenses,
     },
     {
       key: "goal",
       label: "First goal set",
-      hint: "Your primary mission — from setup.",
+      hint: "Copilot builds a timeline and funding plan around this.",
       href: "/goals",
       done: s.hasGoals,
     },
     {
       key: "assets",
       label: "Add your assets",
-      hint: "Savings, investments, property, vehicle.",
+      hint: "Unlocks net worth tracking and existing-savings offset toward goals.",
       href: "/assets",
       done: s.hasAssets,
     },
     {
       key: "liabilities",
       label: "Add your liabilities",
-      hint: "Loans, credit cards, anything owed.",
+      hint: "Unlocks debt-vs-goal priority trade-offs and avalanche analysis.",
       href: "/assets",
       done: s.hasLiabilities,
     },
     {
       key: "scenarios",
       label: "Review your scenarios",
-      hint: "See how each stance reshapes your path.",
+      hint: "Compare Safe, Balanced, Aggressive — see how each reshapes your timeline.",
       href: "/scenarios",
       done: visitedScenarios,
     },
     {
       key: "journey",
       label: "Explore your journey",
-      hint: "Walk the 5-year plan step by step.",
+      hint: "See the year-by-year projection and where inflection points land.",
       href: "/journey",
       done: visitedJourney,
     },
     {
       key: "close",
       label: "Close your first month",
-      hint: "Lock in this snapshot to start tracking progress.",
+      hint: "Activates month-over-month drift detection — the copilot tracks changes for you.",
       href: "/month-close",
       done: s.hasClosedMonth,
     },
@@ -204,7 +204,7 @@ export default function SetupChecklist({ signal }: { signal: SetupSignal }) {
     >
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <p className="label-meta">Complete your model</p>
+          <p className="label-meta">Sharpen your strategy</p>
           <p
             className="mt-2 text-[17px] font-semibold tracking-tight"
             style={{
@@ -218,8 +218,8 @@ export default function SetupChecklist({ signal }: { signal: SetupSignal }) {
             className="mt-1 text-[13px] leading-relaxed"
             style={{ color: "var(--color-text-secondary)" }}
           >
-            Sharpen the model by filling in the parts you skipped.
-            Each step unlocks more of what the copilot can see.
+            Each step teaches the copilot more about your situation.
+            The deeper it sees, the sharper its strategy gets.
           </p>
         </div>
         <button
